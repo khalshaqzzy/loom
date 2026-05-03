@@ -209,7 +209,9 @@ Responsibilities:
 
 ### 6.2 Web frontend scope
 
-- Public first screen exposes the operational map, not a marketing-only landing page.
+- Root web route `/` provides a polished landing page that explains LOOM and routes users into public or admin surfaces.
+- Public operational route `/public` exposes the usable heatmap, filters, marker-only mode, and lookup entry without login.
+- Public history route `/public/history` provides a focused privacy-gated lookup flow.
 - Admin login.
 - Admin dashboard.
 - Node registration form.
@@ -331,7 +333,7 @@ Responsibilities:
 ### 7.8 Public views history with privacy validation
 
 1. Public user opens `loomnetwork.site`.
-2. User sees the public heatmap.
+2. User can navigate from the landing page to `/public` for the public heatmap or `/public/history` for lookup.
 3. User opens history lookup.
 4. User enters full name.
 5. User enters birth date.
@@ -787,17 +789,36 @@ Requirements:
 
 - Returns public-safe heatmap points.
 - Message filter supports decision-tree category/code values and fixed `fine` status.
+- Kept as a compatibility public heatmap route.
 
-`GET /api/map/markers?mode=public|admin`
+`GET /api/public/map/heatmap?message=&from=&to=`
+
+- Canonical public heatmap route for the `/public` web surface.
+- Returns the same public-safe heatmap shape as `/api/map/heatmap`.
+
+`GET /api/map/markers`
 
 - Public mode returns safe marker fields.
-- Admin mode requires session and returns owner/detail fields.
+- Kept as a compatibility public marker route.
+
+`GET /api/public/map/markers`
+
+- Canonical public marker route for the `/public` web surface.
+- Returns public-safe marker fields and must not expose owner identity.
 
 `GET /api/admin/map/markers`
 
 - Returns admin marker data for all registered nodes.
 
-### 10.8 Health and readiness
+### 10.8 Web route manifest
+
+`GET /api/web/routes`
+
+- Returns the canonical frontend route manifest for landing, public, admin, and matching API routes.
+- Must identify `/` as the landing route, `/public` as the public heatmap route, `/public/history` as the public lookup route, `/admin/login` as the admin login route, and `/admin` as the admin dashboard route.
+- This endpoint is public metadata only and must not expose secrets or runtime configuration.
+
+### 10.9 Health and readiness
 
 `GET /health`
 
@@ -834,33 +855,33 @@ DATA is sent as broadcast. A node that receives DATA may only forward it when it
 
 ### 11.3 Constants
 
-| Name | Value |
-| --- | --- |
-| `MAGIC` | `0xD15A` |
-| `TYPE_HEARTBEAT` | `0x01` |
-| `TYPE_DATA` | `0x02` |
-| `ROUTE_INFINITY` | `65535` |
-| `GATEWAY_RANGE` | `0` |
-| `NODE_ID_SIZE` | 3 byte / uint24 |
-| `MAX_NODE_ID` | `16777215` |
-| `HEARTBEAT_INTERVAL` | 15 seconds with random jitter +/- 3 seconds |
-| `NEIGHBOR_TIMEOUT` | 60 seconds |
-| `ROUTE_RECOMPUTE` | 5 seconds |
-| `SEEN_CACHE_EXPIRY` | 30 minutes |
-| `PENDING_EXPIRY` | 30 minutes |
-| `DEFAULT_TARGET_PAYLOAD` | 64 to 128 bytes |
+| Name                     | Value                                       |
+| ------------------------ | ------------------------------------------- |
+| `MAGIC`                  | `0xD15A`                                    |
+| `TYPE_HEARTBEAT`         | `0x01`                                      |
+| `TYPE_DATA`              | `0x02`                                      |
+| `ROUTE_INFINITY`         | `65535`                                     |
+| `GATEWAY_RANGE`          | `0`                                         |
+| `NODE_ID_SIZE`           | 3 byte / uint24                             |
+| `MAX_NODE_ID`            | `16777215`                                  |
+| `HEARTBEAT_INTERVAL`     | 15 seconds with random jitter +/- 3 seconds |
+| `NEIGHBOR_TIMEOUT`       | 60 seconds                                  |
+| `ROUTE_RECOMPUTE`        | 5 seconds                                   |
+| `SEEN_CACHE_EXPIRY`      | 30 minutes                                  |
+| `PENDING_EXPIRY`         | 30 minutes                                  |
+| `DEFAULT_TARGET_PAYLOAD` | 64 to 128 bytes                             |
 
 ### 11.4 HEARTBEAT format
 
 HEARTBEAT is sent periodically by every node.
 
-| Offset | Field | Size |
-| --- | --- | --- |
-| 0 | `magic` | 2 byte |
-| 2 | `packetType` | 1 byte |
-| 3 | `nodeId` | 3 byte |
-| 6 | `rangeToGateway` | 2 byte |
-| 8 | `heartbeatSeq` | 2 byte |
+| Offset | Field            | Size   |
+| ------ | ---------------- | ------ |
+| 0      | `magic`          | 2 byte |
+| 2      | `packetType`     | 1 byte |
+| 3      | `nodeId`         | 3 byte |
+| 6      | `rangeToGateway` | 2 byte |
+| 8      | `heartbeatSeq`   | 2 byte |
 
 Total: 10 byte.
 
@@ -890,18 +911,18 @@ V2 field rules:
 - When a message is created, `forwarderRangeToGateway = senderRangeToGateway`.
 - When a node forwards, it changes `forwarderRangeToGateway` to its own range.
 
-| Offset | Field | Size |
-| --- | --- | --- |
-| 0 | `magic` | 2 byte |
-| 2 | `packetType` | 1 byte |
-| 3 | `senderNodeId` | 3 byte |
-| 6 | `seqId` | 4 byte |
-| 10 | `senderRangeToGateway` | 2 byte |
-| 12 | `forwarderRangeToGateway` | 2 byte |
-| 14 | `timestamp` | 4 byte |
-| 18 | `latE6` | 4 byte |
-| 22 | `lonE6` | 4 byte |
-| 26 | `message` | variable |
+| Offset | Field                     | Size     |
+| ------ | ------------------------- | -------- |
+| 0      | `magic`                   | 2 byte   |
+| 2      | `packetType`              | 1 byte   |
+| 3      | `senderNodeId`            | 3 byte   |
+| 6      | `seqId`                   | 4 byte   |
+| 10     | `senderRangeToGateway`    | 2 byte   |
+| 12     | `forwarderRangeToGateway` | 2 byte   |
+| 14     | `timestamp`               | 4 byte   |
+| 18     | `latE6`                   | 4 byte   |
+| 22     | `lonE6`                   | 4 byte   |
+| 26     | `message`                 | variable |
 
 Fixed header: 26 byte.
 
@@ -929,11 +950,11 @@ Naming notes:
 DATA header = 26 byte.
 
 | Target total payload | Max message bytes |
-| --- | --- |
-| 64 byte | 38 byte |
-| 128 byte | 102 byte |
-| 200 byte | 174 byte |
-| 255 byte | 229 byte |
+| -------------------- | ----------------- |
+| 64 byte              | 38 byte           |
+| 128 byte             | 102 byte          |
+| 200 byte             | 174 byte          |
+| 255 byte             | 229 byte          |
 
 Recommendation:
 
@@ -981,10 +1002,10 @@ RSSI and SNR are not required for minimal V2.
 Example:
 
 | Neighbor | nodeId | rangeToGateway | heartbeatSeq | lastSeenMs |
-| --- | --- | --- | --- | --- |
-| A | 111111 | 0 | 100 | fresh |
-| B | 222222 | 2 | 90 | fresh |
-| C | 333333 | 65535 | 70 | fresh |
+| -------- | ------ | -------------- | ------------ | ---------- |
+| A        | 111111 | 0              | 100          | fresh      |
+| B        | 222222 | 2              | 90           | fresh      |
+| C        | 333333 | 65535          | 70           | fresh      |
 
 ### 11.9 Best neighbor
 
@@ -1144,12 +1165,12 @@ Minimal cache record:
 
 Estimated capacity:
 
-| RAM | Seen messages |
-| --- | --- |
-| 8 KB | about 1024 |
-| 16 KB | about 2048 |
-| 32 KB | about 4096 |
-| 64 KB | about 8192 |
+| RAM   | Seen messages |
+| ----- | ------------- |
+| 8 KB  | about 1024    |
+| 16 KB | about 2048    |
+| 32 KB | about 4096    |
+| 64 KB | about 8192    |
 
 ESP32 recommendation:
 
@@ -1522,10 +1543,11 @@ onReceiveHeartbeat(packet):
 ### 12.1 General design requirements
 
 - Web frontend must be built with Next.js and TypeScript.
-- UI must feel operational, clear, responsive, and production-grade.
+- Landing page must feel polished and product-specific while routing users quickly into the operational public and admin surfaces.
+- Public and admin application UI must feel operational, clear, responsive, and production-grade.
 - Use a strong component system for buttons, forms, tables, panels, dialogs, filters, tabs, and toasts.
 - Use icon buttons where appropriate for map controls and tools.
-- Do not make the public landing page a marketing-only surface; the first screen should expose the usable map/lookup experience.
+- Do not make the root landing page a dead-end marketing surface; it must provide clear calls to `/public`, `/public/history`, and `/admin/login`.
 - Cards should be used for repeated items, panels, and dialogs, not nested decorative containers.
 - Text must fit on mobile and desktop.
 - Admin dashboard should optimize scanning, filtering, and repeated operational use.

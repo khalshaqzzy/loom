@@ -16,6 +16,7 @@ import { createAdminMapRouter, createPublicMapRouter } from "./modules/map/mapRo
 import { createMessageRouter, createNodeMessagesRouter } from "./modules/messages/messageRoutes";
 import { createNodeRouter } from "./modules/nodes/nodeRoutes";
 import { createPublicLookupRouter } from "./modules/publicLookup/publicLookupRoutes";
+import { createWebRouter } from "./modules/web/webRoutes";
 import { HttpError } from "./http/errors";
 
 export const createApp = (config: AppConfig, mongo: MongoContext): express.Express => {
@@ -45,11 +46,13 @@ export const createApp = (config: AppConfig, mongo: MongoContext): express.Expre
   );
 
   app.use(createHealthRouter(context));
+  app.use("/api/web", createWebRouter());
   app.use("/api/admin/auth", createAuthRouter(context));
   app.use("/api/admin/nodes", createNodeRouter(context));
   app.use("/api/admin/nodes/:nodeId/messages", createNodeMessagesRouter(context));
   app.use("/api/ingest", createIngestRouter(context));
   app.use("/api/map", createPublicMapRouter(context));
+  app.use("/api/public/map", createPublicMapRouter(context));
   app.use("/api/admin/map", createAdminMapRouter(context));
   app.use("/api/admin/messages", createMessageRouter(context));
   app.use("/api/public", createPublicLookupRouter(context));

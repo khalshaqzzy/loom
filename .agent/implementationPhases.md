@@ -214,7 +214,7 @@ Execution list:
 - Add request validation middleware using shared schemas.
 - Add body size limits.
 - Add CORS policy for `loomnetwork.site`.
-- Add route grouping for auth, nodes, ingest, map, messages, public lookup, and health/readiness.
+- Add route grouping for auth, nodes, ingest, map, messages, public lookup, web route manifest, and health/readiness.
 
 Exit criteria:
 
@@ -421,6 +421,7 @@ Execution list:
 
 - Scaffold Next.js TypeScript app.
 - Add routing for public and admin surfaces.
+- Use `/` for the landing page, `/public` for public heatmap operations, and `/public/history` for privacy-gated lookup.
 - Add API client using shared contracts.
 - Add session-aware admin route protection.
 - Add environment config for `NEXT_PUBLIC_API_BASE_URL`.
@@ -478,7 +479,8 @@ Exit criteria:
 
 Execution list:
 
-- Make `loomnetwork.site` first viewport a usable map/lookup surface.
+- Make `/` a polished landing page with clear navigation to `/public`, `/public/history`, and `/admin/login`.
+- Make `/public` the unauthenticated public map/lookup operational surface.
 - Render public heatmap.
 - Add message-value filter.
 - Add map type switcher.
@@ -1180,21 +1182,21 @@ Exit criteria:
 
 ## 17. Phase Dependency Matrix
 
-| Phase | Depends on | Unlocks |
-| --- | --- | --- |
-| 0 Product baseline | PRD | All implementation |
-| 1 Scaffold/contracts | 0 | Backend implementation |
-| 2 Full backend | 1 | Backend tests |
-| 3 Backend tests | 2 | Frontend implementation |
-| 4 Web frontend | 3 | Frontend/backend integration |
-| 5 Frontend/backend integration | 4 | Hosted e2e tests |
-| 6 Hosted e2e tests | 5 | CI/CD |
-| 7 Full hosted CI/CD | 6 | Stable hosted web/API |
-| 8 IoT firmware | 7 | Mobile BLE integration |
-| 9 Mobile app | 8, 7 | Mobile/backend/IoT integration |
-| 10 Mobile/backend/IoT integration | 9 | Full-system hardening |
-| 11 Hardening | 10 | Acceptance |
-| 12 Acceptance/handoff | 11 | Release readiness |
+| Phase                             | Depends on | Unlocks                        |
+| --------------------------------- | ---------- | ------------------------------ |
+| 0 Product baseline                | PRD        | All implementation             |
+| 1 Scaffold/contracts              | 0          | Backend implementation         |
+| 2 Full backend                    | 1          | Backend tests                  |
+| 3 Backend tests                   | 2          | Frontend implementation        |
+| 4 Web frontend                    | 3          | Frontend/backend integration   |
+| 5 Frontend/backend integration    | 4          | Hosted e2e tests               |
+| 6 Hosted e2e tests                | 5          | CI/CD                          |
+| 7 Full hosted CI/CD               | 6          | Stable hosted web/API          |
+| 8 IoT firmware                    | 7          | Mobile BLE integration         |
+| 9 Mobile app                      | 8, 7       | Mobile/backend/IoT integration |
+| 10 Mobile/backend/IoT integration | 9          | Full-system hardening          |
+| 11 Hardening                      | 10         | Acceptance                     |
+| 12 Acceptance/handoff             | 11         | Release readiness              |
 
 ## 18. Recommended First Execution Batch
 

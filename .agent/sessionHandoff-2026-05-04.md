@@ -17,6 +17,8 @@ Purpose: high-signal handoff after Phase 0-3 backend foundation work
 - Regenerated `package-lock.json` so it only reflects active workspaces.
 - Updated ADRs so they do not reference roadmap phase labels.
 - Added an ADR-writing rule: ADRs must describe durable decisions and concrete future work, not phase numbers.
+- Added the Phase 4 frontend design guide with `/` as a polished landing page, `/public` as the unauthenticated heatmap surface, and `/public/history` as the privacy-gated lookup surface.
+- Added backend support for the updated frontend route model through `GET /api/web/routes` and canonical public map aliases under `/api/public/map`.
 
 ## Important Repo Facts
 
@@ -27,6 +29,8 @@ Purpose: high-signal handoff after Phase 0-3 backend foundation work
 - Existing `edge-device/` sketches are legacy prototypes and should not be treated as Phase 8 firmware structure.
 - Public lookup failure shape must stay generic for wrong birth date and unknown owner.
 - Backend ingest deduplication must remain global by `senderNodeId + ":" + seqId`.
+- Web route model now uses `/` for landing, `/public` for public heatmap operations, `/public/history` for public lookup, and `/admin/login` plus `/admin/**` for admin operations.
+- Public map APIs are available at `/api/public/map/heatmap` and `/api/public/map/markers`; legacy `/api/map/*` routes remain compatible.
 
 ## Verification Run
 
@@ -44,6 +48,6 @@ Begin Phase 4 in `apps/web`:
 
 1. Scaffold the real Next.js app and add `apps/web/package.json`.
 2. Add `apps/web` to root npm workspaces.
-3. Build public/admin routes using `packages/contracts`.
-4. Use the existing backend APIs as the integration source of truth.
+3. Build `/` landing, `/public`, `/public/history`, and admin routes using `packages/contracts`.
+4. Use `GET /api/web/routes` and the existing backend APIs as the integration source of truth.
 5. Do not add ADR phase references while documenting frontend architecture decisions.

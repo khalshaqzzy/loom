@@ -4,7 +4,8 @@ import {
   healthResponseSchema,
   messageHistoryResponseSchema,
   nodeListResponseSchema,
-  readinessResponseSchema
+  readinessResponseSchema,
+  webRouteManifestResponseSchema
 } from "@loom/contracts";
 import {
   burstRequest,
@@ -47,6 +48,31 @@ describe("LOOM API", () => {
     });
   });
 
+  it("serves the frontend route manifest for landing, public, and admin surfaces", async () => {
+    const response = await request(server.app).get("/api/web/routes").expect(200);
+    expect(webRouteManifestResponseSchema.parse(response.body)).toMatchObject({
+      landing: {
+        home: "/",
+        publicMap: "/public",
+        publicHistory: "/public/history",
+        adminLogin: "/admin/login"
+      },
+      admin: {
+        dashboard: "/admin",
+        map: "/admin/map",
+        nodes: "/admin/nodes",
+        messages: "/admin/messages"
+      },
+      api: {
+        publicHeatmap: "/api/public/map/heatmap",
+        publicMarkers: "/api/public/map/markers",
+        publicHistoryLookup: "/api/public/history/lookup",
+        adminMarkers: "/api/admin/map/markers",
+        adminMessages: "/api/admin/messages"
+      }
+    });
+  });
+
   it("supports admin login, session fetch, and logout", async () => {
     const agent = request.agent(server.app);
     await agent
@@ -58,16 +84,22 @@ describe("LOOM API", () => {
         expect(response.headers["set-cookie"]).toBeDefined();
       });
 
-    await agent.get("/api/admin/auth/session").expect(200).expect((response) => {
-      expect(response.body.authenticated).toBe(true);
-      expect(response.body.admin.username).toBe("admin");
-    });
+    await agent
+      .get("/api/admin/auth/session")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.authenticated).toBe(true);
+        expect(response.body.admin.username).toBe("admin");
+      });
 
     await agent.post("/api/admin/auth/logout").expect(200);
-    await agent.get("/api/admin/auth/session").expect(200).expect((response) => {
-      expect(response.body.authenticated).toBe(false);
-      expect(response.body.admin).toBeNull();
-    });
+    await agent
+      .get("/api/admin/auth/session")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.authenticated).toBe(false);
+        expect(response.body.admin).toBeNull();
+      });
   });
 
   it("rejects invalid admin login", async () => {
@@ -85,17 +117,26 @@ describe("LOOM API", () => {
     const list = await agent.get("/api/admin/nodes").expect(200);
     expect(nodeListResponseSchema.parse(list.body).nodes).toHaveLength(2);
 
-    await agent.get("/api/admin/nodes?search=42").expect(200).expect((response) => {
-      expect(response.body.nodes[0].nodeIdNumeric).toBe(42);
-    });
+    await agent
+      .get("/api/admin/nodes?search=42")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.nodes[0].nodeIdNumeric).toBe(42);
+      });
 
-    await agent.get("/api/admin/nodes?search=Ayu").expect(200).expect((response) => {
-      expect(response.body.nodes[0].ownerFullName).toBe("Ayu Lestari");
-    });
+    await agent
+      .get("/api/admin/nodes?search=Ayu")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.nodes[0].ownerFullName).toBe("Ayu Lestari");
+      });
 
-    await agent.get("/api/admin/nodes/42").expect(200).expect((response) => {
-      expect(response.body.node.nodeIdNumeric).toBe(42);
-    });
+    await agent
+      .get("/api/admin/nodes/42")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.node.nodeIdNumeric).toBe(42);
+      });
   });
 
   it("rejects duplicate and invalid node IDs", async () => {
@@ -109,10 +150,16 @@ describe("LOOM API", () => {
     const agent = await loggedInAgent(server);
     await registerNode(agent, fixtureNodeOwner).expect(201);
 
-    const first = await request(server.app).post("/api/ingest/burst").send(burstRequest()).expect(202);
+    const first = await request(server.app)
+      .post("/api/ingest/burst")
+      .send(burstRequest())
+      .expect(202);
     expect(burstIngestResponseSchema.parse(first.body).accepted).toHaveLength(1);
 
-    const duplicate = await request(server.app).post("/api/ingest/burst").send(burstRequest()).expect(202);
+    const duplicate = await request(server.app)
+      .post("/api/ingest/burst")
+      .send(burstRequest())
+      .expect(202);
     expect(duplicate.body.duplicate).toHaveLength(1);
 
     const crossPhone = await request(server.app)
@@ -134,15 +181,21 @@ describe("LOOM API", () => {
     await registerNode(agent, fixtureNodeOwner).expect(201);
 
     const [first, second] = await Promise.all([
-      request(server.app).post("/api/ingest/burst").send(burstRequest([validMeshMessage({ seqId: 9 })])),
-      request(server.app).post("/api/ingest/burst").send(burstRequest([validMeshMessage({ seqId: 9 })]))
+      request(server.app)
+        .post("/api/ingest/burst")
+        .send(burstRequest([validMeshMessage({ seqId: 9 })])),
+      request(server.app)
+        .post("/api/ingest/burst")
+        .send(burstRequest([validMeshMessage({ seqId: 9 })]))
     ]);
 
     expect(first.status).toBe(202);
     expect(second.status).toBe(202);
     expect(first.body.accepted.length + second.body.accepted.length).toBe(1);
     expect(first.body.duplicate.length + second.body.duplicate.length).toBe(1);
-    expect(await server.mongo.collections.meshMessages.countDocuments({ dedupKey: "42:9" })).toBe(1);
+    expect(await server.mongo.collections.meshMessages.countDocuments({ dedupKey: "42:9" })).toBe(
+      1
+    );
   });
 
   it("serves heatmap, marker, and admin message history responses", async () => {
@@ -150,25 +203,52 @@ describe("LOOM API", () => {
     await registerNode(agent, fixtureNodeOwner).expect(201);
     await request(server.app).post("/api/ingest/burst").send(burstRequest()).expect(202);
 
-    await request(server.app).get("/api/map/heatmap").expect(200).expect((response) => {
-      expect(response.body.points[0]).toMatchObject({ message: "fine", count: 1 });
-    });
-    await request(server.app).get("/api/map/heatmap?message=medical_help").expect(200).expect((response) => {
-      expect(response.body.points).toHaveLength(0);
-    });
-    await request(server.app).get("/api/map/markers").expect(200).expect((response) => {
-      expect(response.body.markers[0].ownerFullName).toBeUndefined();
-    });
-    await agent.get("/api/admin/map/markers").expect(200).expect((response) => {
-      expect(response.body.markers[0].ownerFullName).toBe("Ayu Lestari");
-    });
+    await request(server.app)
+      .get("/api/map/heatmap")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.points[0]).toMatchObject({ message: "fine", count: 1 });
+      });
+    await request(server.app)
+      .get("/api/map/heatmap?message=medical_help")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.points).toHaveLength(0);
+      });
+    await request(server.app)
+      .get("/api/map/markers")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.markers[0].ownerFullName).toBeUndefined();
+      });
+    await request(server.app)
+      .get("/api/public/map/heatmap")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.points[0]).toMatchObject({ message: "fine", count: 1 });
+      });
+    await request(server.app)
+      .get("/api/public/map/markers")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.markers[0].ownerFullName).toBeUndefined();
+      });
+    await agent
+      .get("/api/admin/map/markers")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.markers[0].ownerFullName).toBe("Ayu Lestari");
+      });
 
     const history = await agent.get("/api/admin/messages?nodeId=42").expect(200);
     expect(messageHistoryResponseSchema.parse(history.body).messages).toHaveLength(1);
 
-    await agent.get("/api/admin/nodes/42/messages").expect(200).expect((response) => {
-      expect(response.body.messages[0].dedupKey).toBe("42:1");
-    });
+    await agent
+      .get("/api/admin/nodes/42/messages")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.messages[0].dedupKey).toBe("42:1");
+      });
   });
 
   it("gates public lookup by full name and birth date with generic failures", async () => {

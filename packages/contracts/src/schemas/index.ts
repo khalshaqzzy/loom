@@ -6,3 +6,4 @@ export * from "./messages";
 export * from "./nodes";
 export * from "./primitives";
 export * from "./publicLookup";
+export * from "./web";

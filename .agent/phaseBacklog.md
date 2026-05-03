@@ -30,7 +30,7 @@ Purpose: condensed execution backlog and next-session start point
 - Root npm workspace is limited to packages that build or test today.
 - `packages/contracts` defines shared schemas, constants, and enums.
 - `packages/test-fixtures` defines reusable backend/API fixtures.
-- `apps/api` implements the backend API surface for auth, node registration, ingest, map, markers, messages, public lookup, audit logs, and readiness.
+- `apps/api` implements the backend API surface for auth, node registration, ingest, public/admin map data, public lookup, web route manifest, audit logs, and readiness.
 - Backend tests cover unit behavior, API integration against `mongodb-memory-server` replica set, and contract snapshots.
 - Removed stale generated files from `packages/decision-tree`; it now contains only `README.md`.
 - Regenerated `package-lock.json` after removing placeholder packages from the workspace.
@@ -42,7 +42,7 @@ Start Phase 4: Web Frontend Implementation.
 1. Scaffold the real Next.js TypeScript package under `apps/web`.
 2. Add `apps/web/package.json` when the Next.js app is created.
 3. Add `apps/web` back to root npm workspaces in the same change.
-4. Build the public/admin routes against `packages/contracts`.
+4. Build `/` as the landing page, `/public` as the public heatmap surface, `/public/history` as public lookup, and admin routes against `packages/contracts`.
 5. Keep web business policy out of React components; backend contracts remain the policy source.
 
 Before starting, read:
