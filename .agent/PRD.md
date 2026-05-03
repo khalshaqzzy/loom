@@ -1936,7 +1936,7 @@ Hosted CI/deploy should trigger only when relevant hosted runtime files change.
 
 Do not trigger hosted deploy for docs-only changes such as:
 
-- `internals/**`
+- `.agent/**`
 - `docs/**`
 - `*.md`
 
@@ -2123,7 +2123,7 @@ Implementation must cover at minimum:
 43. Deploy smoke check detects failed API.
 44. Deploy `/ready` detects MongoDB unreachable.
 45. Rollback switches to previous release.
-46. Path filter ignores `internals/**` only change for hosted deploy.
+46. Path filter ignores `.agent/**` only change for hosted deploy.
 47. Path filter ignores mobile-app-only change for hosted deploy.
 
 ## 23. Suggested Implementation Notes

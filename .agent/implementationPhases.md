@@ -3,7 +3,7 @@
 Document status: Draft implementation roadmap  
 Created: 2026-05-04  
 Last updated: 2026-05-04  
-Source of truth: `internals/PRD.md`  
+Source of truth: `.agent/PRD.md`  
 Purpose: full execution plan for implementing LOOM across backend, backend tests, frontend, frontend/backend integration, e2e tests, CI/CD, IoT firmware, mobile app, and final integration adjustments
 
 ## 1. Roadmap Summary
@@ -71,7 +71,7 @@ deploy/
   scripts/
 .github/
   workflows/
-internals/
+.agent/
   PRD.md
   implementationPhases.md
 ```
@@ -87,7 +87,15 @@ Expected ownership:
 - `firmware/loom-node`: ESP32 LoRa protocol V2, routing, dedup, pending queue, BLE bridge.
 - `deploy`: Docker Compose, Caddyfile, remote deploy/rollback scripts, runtime env templates.
 
+Current workspace status after Phase 0-3:
+
+- Active npm workspaces are only `apps/api`, `packages/contracts`, and `packages/test-fixtures`.
+- `apps/web`, `apps/mobile`, `packages/decision-tree`, and `firmware/loom-node` are placeholder directories with README files only.
+- Do not add placeholder `package.json` files to future directories. Add package manifests only when the phase implements a runnable package.
+
 ## 4. Phase 0 - Product Contract and Architecture Baseline
+
+Status: Complete in repo as of 2026-05-04.
 
 Goal: freeze the product, API, protocol, and deployment assumptions before implementation starts.
 
@@ -95,7 +103,7 @@ Goal: freeze the product, API, protocol, and deployment assumptions before imple
 
 Execution list:
 
-- Treat `internals/PRD.md` as the canonical product and technical contract.
+- Treat `.agent/PRD.md` as the canonical product and technical contract.
 - Keep `api.loomnetwork.site` and `loomnetwork.site` as the only hosted public domains.
 - Keep CI/CD scoped to `main` only.
 - Keep mobile app CI/CD out of hosted deployment scope.
@@ -124,6 +132,8 @@ Exit criteria:
 
 ## 5. Phase 1 - Repository Scaffold and Shared Contracts
 
+Status: Complete in repo as of 2026-05-04.
+
 Goal: create the repo foundation used by backend first, then frontend, firmware, and mobile.
 
 ### 1.1 Workspace setup
@@ -139,6 +149,7 @@ Execution list:
   - mobile typecheck/test,
   - contracts build/test.
 - Add root README or developer notes only if needed to run the repo.
+- Keep future-only directories as README placeholders until they have real implementation.
 
 Exit criteria:
 
@@ -186,6 +197,8 @@ Exit criteria:
 - Backend tests can use consistent sample data before frontend and mobile exist.
 
 ## 6. Phase 2 - Full Backend Implementation
+
+Status: Complete in repo as of 2026-05-04.
 
 Goal: complete backend runtime, persistence, auth, node registry, ingest, map, messages, public lookup, and readiness before frontend work starts.
 
@@ -339,6 +352,8 @@ Exit criteria:
 - Public message history is accessible only after valid full-name plus birth-date validation.
 
 ## 7. Phase 3 - Backend Tests and Contract Hardening
+
+Status: Complete in repo as of 2026-05-04.
 
 Goal: lock backend behavior before frontend implementation begins.
 
@@ -691,7 +706,7 @@ Execution list:
   - `pull_request` targeting `main`.
 - Add hosted-runtime path filters.
 - Exclude docs-only changes:
-  - `internals/**`,
+  - `.agent/**`,
   - `docs/**`,
   - `*.md`.
 - Exclude mobile-app-only changes from hosted CI/deploy.
@@ -1153,8 +1168,8 @@ Exit criteria:
 
 Execution list:
 
-- Update `internals/PRD.md` if implemented behavior changed.
-- Update `internals/implementationPhases.md` phase statuses.
+- Update `.agent/PRD.md` if implemented behavior changed.
+- Update `.agent/implementationPhases.md` phase statuses.
 - Add deployment guide if live VM rollout is ready.
 - Add environment matrix for local and hosted runtime.
 - Add production readiness checklist before real disaster-response use.
@@ -1183,13 +1198,12 @@ Exit criteria:
 
 ## 18. Recommended First Execution Batch
 
-Start with this backend-first vertical slice:
+Phases 0-3 are complete. The next recommended execution batch is Phase 4:
 
-1. Scaffold workspace and shared contracts.
-2. Build Express app foundation, MongoDB connection, and `/health` + `/ready`.
-3. Implement admin auth and node registration.
-4. Implement burst ingest with idempotency.
-5. Implement map/history/public lookup APIs.
-6. Complete backend tests before starting the web frontend.
+1. Scaffold the real Next.js app under `apps/web` and add its `package.json` only at that point.
+2. Add routing for public and admin surfaces.
+3. Build the shared UI component system.
+4. Integrate the web API client against `packages/contracts`.
+5. Implement the Google Maps public/admin map surfaces against the completed backend APIs.
 
-This creates the stable backend surface required for every later app and avoids frontend/mobile work building against unstable APIs.
+The backend surface is now stable enough for frontend work, with contract snapshots and Mongo-backed API tests in place.

@@ -2,11 +2,11 @@
 
 Document status: Active  
 Created: 2026-03-19  
-Purpose: operating rules for Codex when reading or updating the `internals/` directory
+Purpose: operating rules for Codex when reading or updating the `.agent/` directory
 
 ## 1. Why This Folder Exists
 
-The `internals/` folder is the project memory and execution layer for LOOM.
+The `.agent/` folder is the project memory and execution layer for LOOM.
 
 It exists to:
 
@@ -15,7 +15,7 @@ It exists to:
 - keep future sessions aligned with the current repo state
 - record what was completed, what is next, and where to start
 
-If code changes materially affect roadmap, deployment, scope, or recommended next steps, `internals/` should usually be updated in the same session.
+If code changes materially affect roadmap, deployment, scope, or recommended next steps, `.agent/` should usually be updated in the same session.
 
 ## 2. File Roles
 
@@ -28,7 +28,7 @@ Read these first when behavior or scope is unclear:
   - business rules
   - expected user behavior
 
-There are currently no dedicated `adminFrontendDesign.md` or `publicFrontendDesign.md` files in `internals/`.
+There are currently no dedicated `adminFrontendDesign.md` or `publicFrontendDesign.md` files in `.agent/`.
 
 Until those exist, treat:
 
@@ -93,10 +93,10 @@ Use `docs/adr/` when a session makes or materially changes a long-lived technica
 
 Typical ADR-worthy changes include:
 
-- contract shape changes that affect multiple apps or future phases
+- contract shape changes that affect multiple apps or future work
 - runtime topology decisions such as workers, queues, storage, or provider boundaries
 - deployment or operational architecture decisions that future sessions must preserve
-- a phase-level implementation choice that intentionally narrows future options
+- an implementation choice that intentionally narrows future options
 
 ADR files should:
 
@@ -104,6 +104,7 @@ ADR files should:
 - state status, date, and decision scope near the top
 - separate context, decision, rationale, consequences, and follow-up clearly
 - describe the decision, not just the code diff
+- avoid roadmap phase references such as `Phase 4` or `Phase 8`; ADRs must describe durable decisions and concrete future work, not project schedule labels
 
 If a session changes an existing accepted architecture decision, update the affected ADR or add a superseding ADR in the same session.
 
@@ -111,18 +112,18 @@ If a session changes an existing accepted architecture decision, update the affe
 
 For most implementation sessions, read in this order:
 
-1. `internals/rules.md`
-2. the newest `internals/sessionHandoff-YYYY-MM-DD.md`
-3. `internals/implementationPhases.md`
-4. `internals/phaseBacklog.md`
-6. `internals/deploymentGuide.md` if the session touches environments, secrets, deploys, VMs
-7. `internals/releaseExecutionChecklist.md` if the session is preparing or guiding a live rollout
-8. `internals/PRD.md` if product behavior is involved
+1. `.agent/rules.md`
+2. the newest `.agent/sessionHandoff-YYYY-MM-DD.md`
+3. `.agent/implementationPhases.md`
+4. `.agent/phaseBacklog.md`
+6. `.agent/deploymentGuide.md` if the session touches environments, secrets, deploys, VMs
+7. `.agent/releaseExecutionChecklist.md` if the session is preparing or guiding a live rollout
+8. `.agent/PRD.md` if product behavior is involved
 9. relevant `docs/adr/` entries when the task touches architecture, contracts, runtime behavior, or deployment shape
 
 ## 4. When To Update Existing Files
 
-Update an existing `internals` file when:
+Update an existing `.agent` file when:
 
 - a phase changes from pending to complete in repo terms
 - the recommended next phase or next session start changes
@@ -152,7 +153,7 @@ Examples:
 
 ## 5. When To Add A New File
 
-Add a new file in `internals/` when:
+Add a new file in `.agent/` when:
 
 - a new phase needs a dedicated kickoff/start document
 - a major session materially changes the repo and needs a fresh handoff
@@ -224,7 +225,7 @@ If a change spans multiple categories, choose the prefix that best describes the
 
 ## 9. Content Rules
 
-When updating or adding files in `internals/`:
+When updating or adding files in `.agent/`:
 
 - write for future Codex sessions, not for marketing or external users
 - optimize for high-signal continuity
