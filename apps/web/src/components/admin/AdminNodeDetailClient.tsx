@@ -1,6 +1,8 @@
 "use client";
 
 import type { MeshMessageResponse, RegisteredNodeResponse, MessageValue } from "@loom/contracts";
+import { ArrowLeft, Broadcast, Clock, MapPin, WifiHigh } from "@phosphor-icons/react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { formatJakartaTime, messageValueOptions } from "@/lib/labels";
@@ -25,30 +27,54 @@ export function AdminNodeDetailClient({ nodeId }: { nodeId: string }) {
       .finally(() => setLoading(false));
   }, [nodeId, message]);
 
-  if (loading) return <Skeleton className="h-[620px]" />;
+  if (loading) return <Skeleton className="h-[620px] rounded-xl" />;
   if (error || !node) return <InlineAlert tone="error">{error || "Node detail is unavailable."}</InlineAlert>;
 
   return (
     <div className="grid gap-5">
-      <Panel className="p-6">
-        <div className="flex flex-col justify-between gap-5 md:flex-row">
-          <div>
-            <p className="text-sm font-semibold text-slate-500">Node identity</p>
-            <h2 className="mt-2 text-4xl font-black text-slate-950">{node.nodeId}</h2>
-            <p className="mt-2 text-lg font-semibold text-slate-700">{node.ownerFullName}</p>
+      {/* Node identity header */}
+      <Panel className="animate-fade-up overflow-hidden">
+        <div className="relative bg-gradient-to-br from-command/5 via-transparent to-[var(--mesh)]/5 px-7 py-8">
+          <Link
+            href="/admin/nodes"
+            className="mb-5 inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 transition-colors hover:text-command"
+          >
+            <ArrowLeft size={14} weight="bold" />
+            Back to nodes
+          </Link>
+          <div className="flex flex-col justify-between gap-5 md:flex-row md:items-start">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Node identity</p>
+              <h2 className="mt-2 font-mono text-4xl font-black tracking-tight text-slate-950">{node.nodeId}</h2>
+              <p className="mt-2 text-lg font-semibold text-slate-700">{node.ownerFullName}</p>
+            </div>
+            <Badge tone={node.status === "active" ? "mesh" : node.status === "inactive" ? "attention" : "unknown"} dot>
+              {node.status}
+            </Badge>
           </div>
-          <Badge tone={node.status === "active" ? "mesh" : "command"}>{node.status}</Badge>
         </div>
-        <div className="mt-8 grid gap-4 md:grid-cols-4">
-          <Info label="Last seen" value={formatJakartaTime(node.lastSeenAt)} />
-          <Info label="Last message" value={formatJakartaTime(node.lastMessageAt)} />
-          <Info label="Range" value={node.lastRangeToGateway === null ? "Unavailable" : String(node.lastRangeToGateway)} />
-          <Info label="Location" value={node.lastKnownLat === null || node.lastKnownLon === null ? "Unavailable" : `${node.lastKnownLat.toFixed(4)}, ${node.lastKnownLon.toFixed(4)}`} />
+        <div className="grid gap-3 border-t border-slate-100 bg-slate-50/30 px-7 py-5 md:grid-cols-4">
+          <InfoCard icon={<Clock size={18} weight="bold" />} label="Last seen" value={formatJakartaTime(node.lastSeenAt)} />
+          <InfoCard icon={<Broadcast size={18} weight="bold" />} label="Last message" value={formatJakartaTime(node.lastMessageAt)} />
+          <InfoCard
+            icon={<WifiHigh size={18} weight="bold" />}
+            label="Range to gateway"
+            value={node.lastRangeToGateway === null ? "Unavailable" : String(node.lastRangeToGateway)}
+            mono
+          />
+          <InfoCard
+            icon={<MapPin size={18} weight="bold" />}
+            label="Location"
+            value={node.lastKnownLat === null || node.lastKnownLon === null ? "Unavailable" : `${node.lastKnownLat.toFixed(4)}, ${node.lastKnownLon.toFixed(4)}`}
+            mono
+          />
         </div>
       </Panel>
-      <Panel className="p-6">
+
+      {/* Message history */}
+      <Panel className="animate-fade-up p-6" style={{ animationDelay: "100ms" }}>
         <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-          <h2 className="text-2xl font-black text-slate-950">Message history</h2>
+          <h2 className="text-xl font-black tracking-tight text-slate-950">Message history</h2>
           <SelectField label="Filter by message" value={message} onChange={(event) => setMessage(event.target.value as MessageValue | "")}>
             <option value="">All messages</option>
             {messageValueOptions.map((option) => (
@@ -56,18 +82,36 @@ export function AdminNodeDetailClient({ nodeId }: { nodeId: string }) {
             ))}
           </SelectField>
         </div>
-        <MessageTable messages={messages} />
-        {!messages.length ? <div className="py-10 text-center font-semibold text-slate-600">No messages match this node filter.</div> : null}
+        {messages.length > 0 ? (
+          <MessageTable messages={messages} />
+        ) : (
+          <div className="py-12 text-center text-sm font-semibold text-slate-400">
+            No messages match this node filter.
+          </div>
+        )}
       </Panel>
     </div>
   );
 }
 
-function Info({ label, value }: { label: string; value: string }) {
+function InfoCard({
+  icon,
+  label,
+  value,
+  mono = false
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
-    <div className="rounded-lg border border-border bg-mist p-4">
-      <p className="text-xs font-semibold text-slate-500">{label}</p>
-      <p className="mt-2 font-semibold text-slate-950">{value}</p>
+    <div className="stagger-item flex items-start gap-3 rounded-lg border border-slate-100 bg-white/60 px-4 py-3">
+      <div className="mt-0.5 text-slate-400">{icon}</div>
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+        <p className={`mt-0.5 text-sm font-semibold text-slate-800 ${mono ? "font-mono" : ""}`}>{value}</p>
+      </div>
     </div>
   );
 }

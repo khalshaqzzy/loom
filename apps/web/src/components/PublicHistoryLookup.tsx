@@ -1,11 +1,11 @@
 "use client";
 
 import type { MeshMessageResponse } from "@loom/contracts";
-import { MagnifyingGlass } from "@phosphor-icons/react";
+import { ClockCounterClockwise, MagnifyingGlass, MapPin, ShieldCheck } from "@phosphor-icons/react";
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { formatJakartaTime, messageLabel } from "@/lib/labels";
-import { Button, Field, InlineAlert, Panel } from "./ui";
+import { Badge, Button, EmptyState, Field, InlineAlert, Panel } from "./ui";
 
 export function PublicHistoryLookup({ compact = false }: { compact?: boolean }) {
   const [ownerFullName, setOwnerFullName] = useState("");
@@ -35,21 +35,31 @@ export function PublicHistoryLookup({ compact = false }: { compact?: boolean }) 
   };
 
   return (
-    <Panel className={compact ? "p-5" : "p-6 md:p-8"}>
+    <Panel className={compact ? "p-5" : "p-7 md:p-8"}>
       <form className="grid gap-5" onSubmit={submit}>
         <div>
-          <h1 className={compact ? "text-xl font-black text-slate-950" : "text-3xl font-black text-slate-950"}>
-            Privacy lookup
-          </h1>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Enter the owner's full name and birth date. Failed attempts return one generic response.
-          </p>
+          <div className="flex items-center gap-3">
+            {!compact && (
+              <div className="grid size-11 place-items-center rounded-xl bg-command/10 text-command">
+                <ClockCounterClockwise size={22} weight="bold" />
+              </div>
+            )}
+            <div>
+              <h1 className={compact ? "text-lg font-black tracking-tight text-slate-950" : "text-2xl font-black tracking-tight text-slate-950"}>
+                Privacy lookup
+              </h1>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                Enter the owner&apos;s full name and birth date. Failed attempts return one generic response.
+              </p>
+            </div>
+          </div>
         </div>
         <Field
           label="Owner full name"
           value={ownerFullName}
           onChange={(event) => setOwnerFullName(event.target.value)}
           autoComplete="off"
+          placeholder="e.g. Budi Santoso"
           required
         />
         <Field
@@ -59,29 +69,48 @@ export function PublicHistoryLookup({ compact = false }: { compact?: boolean }) 
           onChange={(event) => setOwnerBirthDate(event.target.value)}
           required
         />
-        <Button type="submit" disabled={loading || ownerFullName.trim().length < 2 || !ownerBirthDate}>
-          <MagnifyingGlass size={18} weight="bold" />
-          {loading ? "Searching" : "Search history"}
+        <Button type="submit" loading={loading} disabled={ownerFullName.trim().length < 2 || !ownerBirthDate}>
+          <MagnifyingGlass size={17} weight="bold" />
+          Search history
         </Button>
         {failure ? <InlineAlert tone="error">{failure}</InlineAlert> : null}
       </form>
-      {messages ? (
-        <div className="mt-6 grid gap-3">
-          {messages.length ? (
-            messages.map((message) => (
-              <div key={message.messageId} className="rounded-lg border border-border bg-mist p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <strong>{messageLabel(message.message)}</strong>
-                  <span className="font-mono text-xs text-slate-500">Node {message.senderNodeId}</span>
+
+      {messages !== null && (
+        <div className="mt-6 animate-fade-up">
+          {messages.length > 0 ? (
+            <div className="grid gap-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                {messages.length} message{messages.length !== 1 ? "s" : ""} found
+              </p>
+              {messages.map((message, index) => (
+                <div
+                  key={message.messageId}
+                  className="stagger-item rounded-lg border border-slate-100 bg-slate-50/50 p-4 transition-colors hover:bg-slate-50"
+                  style={{ "--stagger-index": index } as React.CSSProperties}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <Badge tone={message.message === "fine" ? "safe" : "command"} dot>
+                      {messageLabel(message.message)}
+                    </Badge>
+                    <span className="flex items-center gap-1.5 font-mono text-xs text-slate-400">
+                      <MapPin size={12} weight="bold" />
+                      Node {message.senderNodeId}
+                    </span>
+                  </div>
+                  <p className="mt-2.5 text-sm text-slate-600">{formatJakartaTime(message.timestamp)}</p>
                 </div>
-                <p className="mt-2 text-sm text-slate-600">{formatJakartaTime(message.timestamp)}</p>
-              </div>
-            ))
+              ))}
+            </div>
           ) : (
-            <InlineAlert tone="success">No messages have reached the network for this owner yet.</InlineAlert>
+            <EmptyState
+              icon={ShieldCheck}
+              title="No messages yet"
+              description="No messages have reached the network for this owner yet."
+            />
           )}
         </div>
-      ) : null}
+      )}
     </Panel>
   );
 }
