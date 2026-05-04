@@ -87,10 +87,11 @@ Expected ownership:
 - `firmware/loom-node`: ESP32 LoRa protocol V2, routing, dedup, pending queue, BLE bridge.
 - `deploy`: Docker Compose, Caddyfile, remote deploy/rollback scripts, runtime env templates.
 
-Current workspace status after Phase 0-3:
+Current workspace status after Phase 0-4:
 
-- Active npm workspaces are only `apps/api`, `packages/contracts`, and `packages/test-fixtures`.
-- `apps/web`, `apps/mobile`, `packages/decision-tree`, and `firmware/loom-node` are placeholder directories with README files only.
+- Active npm workspaces are `apps/api`, `apps/web`, `packages/contracts`, and `packages/test-fixtures`.
+- `apps/web` is the active Next.js frontend workspace.
+- `apps/mobile`, `packages/decision-tree`, and `firmware/loom-node` are placeholder directories with README files only.
 - Do not add placeholder `package.json` files to future directories. Add package manifests only when the phase implements a runnable package.
 
 ## 4. Phase 0 - Product Contract and Architecture Baseline
@@ -412,6 +413,8 @@ Exit criteria:
 - Frontend can start from stable backend contracts.
 
 ## 8. Phase 4 - Web Frontend Implementation
+
+Status: Complete in repo as of 2026-05-04.
 
 Goal: build the Next.js frontend after backend APIs and tests are complete.
 
@@ -1200,12 +1203,12 @@ Exit criteria:
 
 ## 18. Recommended First Execution Batch
 
-Phases 0-3 are complete. The next recommended execution batch is Phase 4:
+Phases 0-4 are complete. The next recommended execution batch is Phase 5:
 
-1. Scaffold the real Next.js app under `apps/web` and add its `package.json` only at that point.
-2. Add routing for public and admin surfaces.
-3. Build the shared UI component system.
-4. Integrate the web API client against `packages/contracts`.
-5. Implement the Google Maps public/admin map surfaces against the completed backend APIs.
+1. Run the real Next.js web app against a live local backend and MongoDB fixture set.
+2. Verify public map, public lookup, admin login, node registration, admin marker select, and message history against real API responses.
+3. Add frontend/backend integration tests and e2e coverage for those flows.
+4. Make only small backend adjustments needed for frontend compatibility, while preserving privacy and ingest idempotency decisions.
+5. Keep `.agent/designImages`, `.next`, and `output` artifacts out of commits.
 
-The backend surface is now stable enough for frontend work, with contract snapshots and Mongo-backed API tests in place.
+The backend and initial web surfaces are now stable enough for integration work, with backend contract snapshots, Mongo-backed API tests, and web unit tests in place.

@@ -1,6 +1,10 @@
 node_modules/
 dist/
 coverage/
+.next/
+**/.next/
+output/
+.agent/designImages/
 .env
 .env.*
 !.env.example

@@ -6,6 +6,7 @@ module.exports = [
     ignores: [
       "**/dist/**",
       "**/coverage/**",
+      "**/.next/**",
       "**/node_modules/**",
       "edge-device/**",
       "eslint.config.js",

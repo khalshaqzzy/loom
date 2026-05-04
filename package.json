@@ -4,6 +4,7 @@
   "private": true,
   "workspaces": [
     "apps/api",
+    "apps/web",
     "packages/contracts",
     "packages/test-fixtures"
   ],
@@ -11,13 +12,16 @@
     "api:dev": "npm run dev -w @loom/api",
     "api:build": "npm run build -w @loom/api",
     "api:test": "npm run test -w @loom/api",
+    "web:dev": "npm run dev -w @loom/web",
+    "web:build": "npm run build -w @loom/web",
+    "web:test": "npm run test -w @loom/web",
     "contracts:build": "npm run build -w @loom/contracts",
     "contracts:test": "npm run test -w @loom/contracts",
     "lint": "eslint .",
     "format:check": "prettier --check .",
     "typecheck": "npm run build -w @loom/contracts && npm run build -w @loom/test-fixtures && npm run typecheck --workspaces --if-present",
     "test": "npm run build -w @loom/contracts && npm run build -w @loom/test-fixtures && npm run test --workspaces --if-present",
-    "build": "npm run build -w @loom/contracts && npm run build -w @loom/test-fixtures && npm run build -w @loom/api"
+    "build": "npm run build -w @loom/contracts && npm run build -w @loom/test-fixtures && npm run build -w @loom/api && npm run build -w @loom/web"
   },
   "devDependencies": {
     "@eslint/js": "9.39.1",
