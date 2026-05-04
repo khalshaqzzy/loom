@@ -67,6 +67,7 @@ describe("LOOM API", () => {
         publicHeatmap: "/api/public/map/heatmap",
         publicMarkers: "/api/public/map/markers",
         publicHistoryLookup: "/api/public/history/lookup",
+        adminHeatmap: "/api/admin/map/heatmap",
         adminMarkers: "/api/admin/map/markers",
         adminMessages: "/api/admin/messages"
       }
@@ -232,6 +233,18 @@ describe("LOOM API", () => {
       .expect(200)
       .expect((response) => {
         expect(response.body.markers[0].ownerFullName).toBeUndefined();
+      });
+    await agent
+      .get("/api/admin/map/heatmap")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.points[0]).toMatchObject({ message: "fine", count: 1 });
+      });
+    await agent
+      .get("/api/admin/map/heatmap?message=medical_help")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.points).toHaveLength(0);
       });
     await agent
       .get("/api/admin/map/markers")

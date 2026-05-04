@@ -6,7 +6,7 @@ Purpose: condensed execution backlog and next-session start point
 
 ## Current Repo State
 
-- Phases 0-4 are complete in repo terms.
+- Phases 0-5 are complete in repo terms.
 - Active npm workspaces:
   - `apps/api`
   - `apps/web`
@@ -26,12 +26,14 @@ Purpose: condensed execution backlog and next-session start point
 ## Completed
 
 - `.agent/rules.md` now treats `.agent/` as the canonical project memory folder.
-- ADRs exist for VM monolith runtime, LoRa V2, mobile direct burst, Google Maps, public lookup privacy, active workspace package boundaries, web route manifest, and the active Next.js web workspace.
+- ADRs exist for VM monolith runtime, LoRa V2, mobile direct burst, Google Maps, public lookup privacy, active workspace package boundaries, web route manifest, the active Next.js web workspace, and the web/API integration contract.
 - Root npm workspace includes packages that build or test today.
 - `packages/contracts` defines shared schemas, constants, and enums.
 - `packages/test-fixtures` defines reusable backend/API fixtures.
 - `apps/api` implements the backend API surface for auth, node registration, ingest, public/admin map data, public lookup, web route manifest, audit logs, and readiness.
 - `apps/web` implements the Next.js frontend workspace, including the polished landing page, public map surface, public privacy lookup, and admin surfaces.
+- Phase 5 frontend/backend integration is complete: the web API client uses real backend contracts, admin heatmap support is implemented, map type switching is wired, public/admin map filters are covered, and seeded local browser verification passed against a memory-backed API.
+- Web map heatmap intensity uses supported Google circle overlays instead of the deprecated Google Maps Heatmap Layer.
 - Landing-page visual reference images under `.agent/designImages` are local design inputs only and must not be committed or served directly.
 - Backend tests cover unit behavior, API integration against `mongodb-memory-server` replica set, and contract snapshots.
 - Removed stale generated files from `packages/decision-tree`; it now contains only `README.md`.
@@ -39,11 +41,11 @@ Purpose: condensed execution backlog and next-session start point
 
 ## Next Recommended Start
 
-Start Phase 5: Frontend/Backend Integration and backend adjustments only where needed.
+Start Phase 6: Hosted Web/API End-to-End Tests.
 
-1. Run the Next.js web app against a live local backend and MongoDB fixture set.
-2. Verify `/public`, `/public/history`, `/admin/login`, `/admin/map`, `/admin/nodes`, and `/admin/messages` against real API responses.
-3. Add or adjust frontend/backend integration tests for public lookup, map filters, marker-only mode, admin login, node registration, marker selection, and message history.
+1. Add a repeatable e2e harness for API + web + MongoDB.
+2. Seed admin user, registered nodes, and simulated message batches.
+3. Cover public map/filter/lookup, admin login/node registration/search/map marker/history, and ingest-to-map/history updates end to end.
 4. Keep web business policy out of React components; backend contracts remain the policy source.
 5. Do not commit `.agent/designImages` or generated `.next`/`output` artifacts.
 
@@ -53,13 +55,15 @@ Before starting, read:
 - `.agent/sessionHandoff-2026-05-04.md`
 - `.agent/implementationPhases.md`
 - `docs/adr/0008-nextjs-web-workspace-and-asset-led-landing.md`
+- `docs/adr/0004-google-maps-provider.md`
+- `docs/adr/0009-web-api-integration-contract.md`
 
 ## Verification Baseline
 
 Last passing verification:
 
 - `npm install`
-- `npm run typecheck`
 - `npm run lint`
+- `npm run typecheck`
 - `npm test`
 - `npm run build`

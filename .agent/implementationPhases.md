@@ -87,10 +87,11 @@ Expected ownership:
 - `firmware/loom-node`: ESP32 LoRa protocol V2, routing, dedup, pending queue, BLE bridge.
 - `deploy`: Docker Compose, Caddyfile, remote deploy/rollback scripts, runtime env templates.
 
-Current workspace status after Phase 0-4:
+Current workspace status after Phase 0-5:
 
 - Active npm workspaces are `apps/api`, `apps/web`, `packages/contracts`, and `packages/test-fixtures`.
 - `apps/web` is the active Next.js frontend workspace.
+- Phase 5 integration is complete in repo terms: the web client calls real backend contracts, admin heatmap support exists, and web/API integration flows have automated coverage.
 - `apps/mobile`, `packages/decision-tree`, and `firmware/loom-node` are placeholder directories with README files only.
 - Do not add placeholder `package.json` files to future directories. Add package manifests only when the phase implements a runnable package.
 
@@ -519,6 +520,8 @@ Exit criteria:
 - Admin can log in, register/search nodes, view heatmap/markers, and inspect node message history.
 
 ## 9. Phase 5 - Frontend/Backend Integration and Backend Adjustments
+
+Status: Complete in repo as of 2026-05-04.
 
 Goal: connect the completed frontend to the completed backend and make only necessary backend adjustments discovered during integration.
 
@@ -1203,12 +1206,12 @@ Exit criteria:
 
 ## 18. Recommended First Execution Batch
 
-Phases 0-4 are complete. The next recommended execution batch is Phase 5:
+Phases 0-5 are complete. The next recommended execution batch is Phase 6:
 
-1. Run the real Next.js web app against a live local backend and MongoDB fixture set.
-2. Verify public map, public lookup, admin login, node registration, admin marker select, and message history against real API responses.
-3. Add frontend/backend integration tests and e2e coverage for those flows.
-4. Make only small backend adjustments needed for frontend compatibility, while preserving privacy and ingest idempotency decisions.
+1. Add hosted web/API e2e setup for API + web + MongoDB.
+2. Seed admin, registered nodes, and simulated message batches in the e2e harness.
+3. Cover public map/filter/lookup, admin login/node registration/search/map marker/history, and ingest-to-map/history updates end to end.
+4. Keep Phase 6 scoped to hosted API/web behavior; do not start CI/CD, firmware, or mobile work until e2e is stable.
 5. Keep `.agent/designImages`, `.next`, and `output` artifacts out of commits.
 
-The backend and initial web surfaces are now stable enough for integration work, with backend contract snapshots, Mongo-backed API tests, and web unit tests in place.
+The backend and web surfaces are integrated against shared contracts, with backend API tests, web component/integration tests, and a local seeded API/browser verification pass completed.

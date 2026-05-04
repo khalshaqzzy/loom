@@ -46,7 +46,7 @@ export function PublicMapClient() {
         {loading ? (
           <Skeleton className="h-[640px] rounded-xl" />
         ) : (
-          <MapVisual points={points} markers={markers} markerOnly={markerOnly}>
+          <MapVisual points={points} markers={markers} markerOnly={markerOnly} mapType={mapType}>
             <div className="absolute left-4 top-4 flex flex-wrap gap-3">
               <Panel className="flex items-center gap-3 p-3">
                 <Button variant={markerOnly ? "secondary" : "command"} onClick={() => setMarkerOnly(false)}>

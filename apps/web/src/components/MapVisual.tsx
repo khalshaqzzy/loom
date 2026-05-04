@@ -1,6 +1,6 @@
 "use client";
 
-import { GoogleMap, HeatmapLayer, MarkerF, useJsApiLoader } from "@react-google-maps/api";
+import { CircleF, GoogleMap, MarkerF, useJsApiLoader } from "@react-google-maps/api";
 import type { HeatmapPoint } from "@loom/contracts";
 import type { ReactNode } from "react";
 import { useMemo } from "react";
@@ -23,26 +23,28 @@ export function MapVisual({
   points,
   markers,
   markerOnly,
+  mapType = "roadmap",
   onMarkerSelect,
   children
 }: {
   points?: HeatmapPoint[] | undefined;
   markers?: MarkerLike[] | undefined;
   markerOnly?: boolean;
+  mapType?: string;
   onMarkerSelect?: (marker: MarkerLike) => void;
   children?: ReactNode;
 }) {
   const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: key ?? "",
-    libraries: ["visualization"]
+    googleMapsApiKey: key ?? ""
   });
 
   const heatmapData = useMemo(() => {
-    if (!isLoaded || markerOnly || !points?.length || !window.google) return [];
+    if (!isLoaded || markerOnly || !points?.length) return [];
     return points.map((point) => ({
-      location: new google.maps.LatLng(point.lat, point.lon),
-      weight: point.weight
+      center: { lat: point.lat, lng: point.lon },
+      radius: Math.min(1_900, 600 + point.weight * 450 + point.count * 120),
+      opacity: Math.min(0.42, 0.16 + point.weight * 0.08 + point.count * 0.04)
     }));
   }, [isLoaded, markerOnly, points]);
 
@@ -56,6 +58,7 @@ export function MapVisual({
         mapContainerClassName="h-full min-h-[520px] w-full"
         center={center}
         zoom={11}
+        mapTypeId={mapType}
         options={{
           disableDefaultUI: true,
           zoomControl: true,
@@ -64,21 +67,22 @@ export function MapVisual({
           fullscreenControl: false
         }}
       >
-        {!markerOnly && heatmapData.length ? (
-          <HeatmapLayer
-            data={heatmapData}
-            options={{
-              radius: 36,
-              opacity: 0.72,
-              gradient: [
-                "rgba(18,167,162,0)",
-                "rgba(18,167,162,0.55)",
-                "rgba(15,95,215,0.65)",
-                "rgba(184,74,58,0.72)"
-              ]
-            }}
-          />
-        ) : null}
+        {!markerOnly && heatmapData.length
+          ? heatmapData.map((point, index) => (
+              <CircleF
+                key={`${point.center.lat}-${point.center.lng}-${index}`}
+                center={point.center}
+                radius={point.radius}
+                options={{
+                  strokeColor: "#0f5fd7",
+                  strokeOpacity: 0.18,
+                  strokeWeight: 1,
+                  fillColor: "#12a7a2",
+                  fillOpacity: point.opacity
+                }}
+              />
+            ))
+          : null}
         {markers?.map((marker) =>
           marker.lat !== null && marker.lon !== null ? (
             <MarkerF

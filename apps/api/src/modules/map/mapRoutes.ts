@@ -50,6 +50,20 @@ export const createAdminMapRouter = (context: AppContext): Router => {
   router.use(requireAdmin(context));
 
   router.get(
+    "/heatmap",
+    validateQuery(heatmapQuerySchema),
+    asyncHandler(async (request, response) => {
+      const filter = buildMessageFilter(request.validatedQuery as HeatmapQuery);
+      const messages = await context.mongo.collections.meshMessages
+        .find(filter)
+        .sort({ timestamp: -1 })
+        .limit(2_000)
+        .toArray();
+      response.json({ points: aggregateHeatmapPoints(messages) });
+    })
+  );
+
+  router.get(
     "/markers",
     asyncHandler(async (_request, response) => {
       const nodes = await context.mongo.collections.registeredNodes.find({}).limit(2_000).toArray();

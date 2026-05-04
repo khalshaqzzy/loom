@@ -1,6 +1,6 @@
 "use client";
 
-import type { MessageValue } from "@loom/contracts";
+import type { HeatmapPoint, MessageValue } from "@loom/contracts";
 import { markerSchema } from "@loom/contracts";
 import type { z } from "zod";
 import { useEffect, useState } from "react";
@@ -12,26 +12,38 @@ import { Badge, Button, InlineAlert, Panel, SelectField, Skeleton } from "../ui"
 type Marker = z.infer<typeof markerSchema>;
 
 export function AdminMapClient() {
+  const [points, setPoints] = useState<HeatmapPoint[]>([]);
   const [markers, setMarkers] = useState<Marker[]>([]);
   const [selected, setSelected] = useState<Marker | null>(null);
   const [message, setMessage] = useState<MessageValue | "">("");
   const [markerOnly, setMarkerOnly] = useState(false);
+  const [mapType, setMapType] = useState("roadmap");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    api
-      .adminMarkers()
-      .then((response) => setMarkers(response.markers))
-      .catch(() => setError("Admin markers are unavailable."))
+    setLoading(true);
+    setError("");
+    Promise.all([api.adminHeatmap(message), api.adminMarkers()])
+      .then(([heatmapResponse, markerResponse]) => {
+        setPoints(heatmapResponse.points);
+        setMarkers(markerResponse.markers);
+      })
+      .catch(() => setError("Admin map data is unavailable."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [message]);
 
   if (loading) return <Skeleton className="h-[720px]" />;
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-      <MapVisual markers={markers} markerOnly={markerOnly} onMarkerSelect={(marker) => setSelected(marker as Marker)}>
+      <MapVisual
+        points={points}
+        markers={markers}
+        markerOnly={markerOnly}
+        mapType={mapType}
+        onMarkerSelect={(marker) => setSelected(marker as Marker)}
+      >
         <Panel className="absolute left-4 top-4 flex flex-wrap gap-3 p-3">
           <SelectField label="Message value" value={message} onChange={(event) => setMessage(event.target.value as MessageValue | "")}>
             <option value="">All categories</option>
@@ -40,6 +52,12 @@ export function AdminMapClient() {
                 {option.label}
               </option>
             ))}
+          </SelectField>
+          <SelectField label="Map type" value={mapType} onChange={(event) => setMapType(event.target.value)}>
+            <option value="roadmap">Roadmap</option>
+            <option value="satellite">Satellite</option>
+            <option value="terrain">Terrain</option>
+            <option value="hybrid">Hybrid</option>
           </SelectField>
           <Button variant={markerOnly ? "command" : "secondary"} onClick={() => setMarkerOnly((value) => !value)}>
             Marker-only

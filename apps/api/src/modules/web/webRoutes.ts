@@ -23,6 +23,7 @@ const webRouteManifest: WebRouteManifestResponse = {
     publicHeatmap: "/api/public/map/heatmap",
     publicMarkers: "/api/public/map/markers",
     publicHistoryLookup: "/api/public/history/lookup",
+    adminHeatmap: "/api/admin/map/heatmap",
     adminMarkers: "/api/admin/map/markers",
     adminMessages: "/api/admin/messages",
     adminNodes: "/api/admin/nodes"

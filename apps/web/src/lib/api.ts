@@ -63,6 +63,10 @@ export const api = {
     return requestJson(`/api/public/map/heatmap${query}`, heatmapResponseSchema);
   },
   publicMarkers: () => requestJson("/api/public/map/markers", markerResponseSchema),
+  adminHeatmap: (message?: MessageValue | "") => {
+    const query = message ? `?message=${encodeURIComponent(message)}` : "";
+    return requestJson(`/api/admin/map/heatmap${query}`, heatmapResponseSchema);
+  },
   adminMarkers: () => requestJson("/api/admin/map/markers", markerResponseSchema),
   publicLookup: (body: { ownerFullName: string; ownerBirthDate: string }) =>
     requestJson("/api/public/history/lookup", publicHistoryLookupResponseSchema, {

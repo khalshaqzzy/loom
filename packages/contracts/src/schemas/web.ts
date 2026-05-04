@@ -22,6 +22,7 @@ export const webRouteManifestResponseSchema = z.object({
     publicHeatmap: z.literal("/api/public/map/heatmap"),
     publicMarkers: z.literal("/api/public/map/markers"),
     publicHistoryLookup: z.literal("/api/public/history/lookup"),
+    adminHeatmap: z.literal("/api/admin/map/heatmap"),
     adminMarkers: z.literal("/api/admin/map/markers"),
     adminMessages: z.literal("/api/admin/messages"),
     adminNodes: z.literal("/api/admin/nodes")
