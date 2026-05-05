@@ -32,11 +32,67 @@ if ! flock -n 9; then
   exit 1
 fi
 
-docker compose \
-  --project-name "loom-${APP_ENV}" \
-  --env-file "${RUNTIME_ENV_FILE}" \
-  -f "${COMPOSE_FILE}" \
-  up -d --build --remove-orphans
+compose() {
+  docker compose \
+    --project-name "loom-${APP_ENV}" \
+    --env-file "${RUNTIME_ENV_FILE}" \
+    -f "${COMPOSE_FILE}" \
+    "$@"
+}
+
+wait_for_service() {
+  local service="$1"
+  local timeout_seconds="${2:-180}"
+  local started_at
+  local container_id
+  local status
+
+  started_at="$(date +%s)"
+
+  while true; do
+    container_id="$(compose ps -q "${service}" 2>/dev/null || true)"
+
+    if [[ -n "${container_id}" ]]; then
+      status="$(docker inspect --format '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "${container_id}" 2>/dev/null || true)"
+
+      case "${status}" in
+        healthy|running)
+          echo "Service ${service} is ${status}."
+          return 0
+          ;;
+        unhealthy|exited|dead)
+          echo "Service ${service} entered bad state: ${status}" >&2
+          docker inspect --format '{{json .State.Health}}' "${container_id}" >&2 || true
+          docker logs "${container_id}" --tail 100 >&2 || true
+          return 1
+          ;;
+      esac
+    fi
+
+    if (( "$(date +%s)" - started_at >= timeout_seconds )); then
+      echo "Timed out waiting for ${service} to become ready." >&2
+      if [[ -n "${container_id}" ]]; then
+        docker inspect --format '{{json .State.Health}}' "${container_id}" >&2 || true
+        docker logs "${container_id}" --tail 100 >&2 || true
+      fi
+      return 1
+    fi
+
+    sleep 5
+  done
+}
+
+compose up -d --build --remove-orphans --no-deps mongo
+wait_for_service mongo 180
+
+compose up -d --build --remove-orphans --no-deps api
+wait_for_service api 240
+
+compose up -d --build --remove-orphans --no-deps web
+wait_for_service web 240
+
+compose up -d --build --remove-orphans --no-deps caddy
+wait_for_service caddy 120
 
 ln -sfn "${RELEASE_DIR}" "${CURRENT_LINK}"
 printf '%s\n' "${RELEASE_SHA}" > "${BASE_DIR}/current_release"

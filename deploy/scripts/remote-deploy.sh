@@ -41,6 +41,7 @@ wait_for_service() {
           ;;
         unhealthy|exited|dead)
           echo "Service ${service} entered bad state: ${status}" >&2
+          docker inspect --format '{{json .State.Health}}' "${container_id}" >&2 || true
           docker logs "${container_id}" --tail 100 >&2 || true
           return 1
           ;;
@@ -91,11 +92,16 @@ mkdir -p \
   "${BASE_DIR}/shared/caddy-config" \
   "${BASE_DIR}/shared/mongo-data"
 
-compose up -d --build --remove-orphans
-
+compose up -d --build --remove-orphans --no-deps mongo
 wait_for_service mongo 180
+
+compose up -d --build --remove-orphans --no-deps api
 wait_for_service api 240
+
+compose up -d --build --remove-orphans --no-deps web
 wait_for_service web 240
+
+compose up -d --build --remove-orphans --no-deps caddy
 wait_for_service caddy 120
 
 ln -sfn "${RELEASE_DIR}" "${CURRENT_LINK}"
