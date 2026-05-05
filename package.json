@@ -4,6 +4,7 @@
   "private": true,
   "workspaces": [
     "apps/api",
+    "apps/e2e",
     "apps/web",
     "packages/contracts",
     "packages/test-fixtures"
@@ -15,6 +16,8 @@
     "web:dev": "npm run dev -w @loom/web",
     "web:build": "npm run build -w @loom/web",
     "web:test": "npm run test -w @loom/web",
+    "e2e": "npm run build -w @loom/contracts && npm run build -w @loom/test-fixtures && npm run build -w @loom/api && npm run build -w @loom/web && npx playwright install chromium && npm run e2e -w @loom/e2e",
+    "e2e:ui": "npm run e2e:ui -w @loom/e2e",
     "contracts:build": "npm run build -w @loom/contracts",
     "contracts:test": "npm run test -w @loom/contracts",
     "lint": "eslint .",

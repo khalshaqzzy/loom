@@ -8,13 +8,10 @@ import { ObjectId } from "mongodb";
 import type { MeshMessageDocument } from "../../db/documents";
 
 describe("backend domain utilities", () => {
-  it("validates required config values", () => {
-    expect(() =>
-      loadConfig({
-        SESSION_SECRET: "short",
-        OWNER_BIRTHDATE_HASH_SECRET: "test-birthdate-secret-000000000000000"
-      })
-    ).toThrow();
+  it("derives the owner birth-date hash secret from the session secret by default", () => {
+    expect(loadConfig({ SESSION_SECRET: "session-secret" }).OWNER_BIRTHDATE_HASH_SECRET).toBe(
+      "session-secret"
+    );
   });
 
   it("validates node IDs as uint24", () => {

@@ -4,6 +4,8 @@ coverage/
 .next/
 **/.next/
 output/
+playwright-report/
+test-results/
 .agent/designImages/
 .env
 .env.*

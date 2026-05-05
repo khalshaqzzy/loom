@@ -2,7 +2,7 @@
 
 Document status: Draft implementation roadmap  
 Created: 2026-05-04  
-Last updated: 2026-05-04  
+Last updated: 2026-05-05
 Source of truth: `.agent/PRD.md`  
 Purpose: full execution plan for implementing LOOM across backend, backend tests, frontend, frontend/backend integration, e2e tests, CI/CD, IoT firmware, mobile app, and final integration adjustments
 
@@ -87,12 +87,15 @@ Expected ownership:
 - `firmware/loom-node`: ESP32 LoRa protocol V2, routing, dedup, pending queue, BLE bridge.
 - `deploy`: Docker Compose, Caddyfile, remote deploy/rollback scripts, runtime env templates.
 
-Current workspace status after Phase 0-5:
+Current workspace status after Phase 0-7:
 
-- Active npm workspaces are `apps/api`, `apps/web`, `packages/contracts`, and `packages/test-fixtures`.
+- Active npm workspaces are `apps/api`, `apps/e2e`, `apps/web`, `packages/contracts`, and `packages/test-fixtures`.
 - `apps/web` is the active Next.js frontend workspace.
 - Phase 5 integration is complete in repo terms: the web client calls real backend contracts, admin heatmap support exists, and web/API integration flows have automated coverage.
-- `apps/mobile`, `packages/decision-tree`, and `firmware/loom-node` are placeholder directories with README files only.
+- Phase 6 hosted web/API e2e is complete in repo terms with a Docker-free Playwright harness using ephemeral MongoDB, dynamic local API/web ports, and real backend API seeding.
+- Phase 7 hosted CI/CD is complete in repo terms with Dockerfiles, remote Compose/Caddy runtime, bootstrap/deploy/rollback/smoke scripts, GitHub CI/security/deploy workflows, and operational docs.
+- `apps/mobile` and `packages/decision-tree` remain placeholder directories.
+- `firmware/loom-node` and `firmware/loom-gateway` contain intentional PlatformIO prototypes but remain out of scope until the firmware phase.
 - Do not add placeholder `package.json` files to future directories. Add package manifests only when the phase implements a runnable package.
 
 ## 4. Phase 0 - Product Contract and Architecture Baseline
@@ -582,6 +585,8 @@ Exit criteria:
 
 ## 10. Phase 6 - Hosted Web/API End-to-End Tests
 
+Status: Complete in repo as of 2026-05-05.
+
 Goal: validate the hosted backend and web behavior before CI/CD deployment automation is built.
 
 ### 6.1 Backend/web e2e harness
@@ -649,6 +654,8 @@ Exit criteria:
 - Backend ingest, web map, admin history, and public lookup work as one hosted system.
 
 ## 11. Phase 7 - Full Hosted CI/CD on Main Only
+
+Status: Complete in repo as of 2026-05-05.
 
 Goal: implement GitHub Actions and VM deployment for backend/web hosted runtime after backend and frontend e2e are stable.
 
@@ -1206,12 +1213,12 @@ Exit criteria:
 
 ## 18. Recommended First Execution Batch
 
-Phases 0-5 are complete. The next recommended execution batch is Phase 6:
+Phases 0-7 are complete in repo terms. The next recommended execution batch is Phase 8:
 
-1. Add hosted web/API e2e setup for API + web + MongoDB.
-2. Seed admin, registered nodes, and simulated message batches in the e2e harness.
-3. Cover public map/filter/lookup, admin login/node registration/search/map marker/history, and ingest-to-map/history updates end to end.
-4. Keep Phase 6 scoped to hosted API/web behavior; do not start CI/CD, firmware, or mobile work until e2e is stable.
+1. Treat the existing `firmware/loom-node` and `firmware/loom-gateway` PlatformIO code as intentional prototypes and inspect them before changing firmware.
+2. Align firmware codec byte order and packet shape with LoRa V2 shared constants and PRD requirements.
+3. Add firmware tests around codec, routing state, dedup, pending queue, heartbeat, and forwarding before hardware-specific changes.
+4. Do not start mobile implementation until firmware BLE/API contracts are stable.
 5. Keep `.agent/designImages`, `.next`, and `output` artifacts out of commits.
 
-The backend and web surfaces are integrated against shared contracts, with backend API tests, web component/integration tests, and a local seeded API/browser verification pass completed.
+The backend and web surfaces are integrated against shared contracts, hosted web/API e2e coverage exists, and production VM CI/CD files are present for main-only deploys.

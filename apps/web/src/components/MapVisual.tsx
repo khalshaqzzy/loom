@@ -50,7 +50,7 @@ export function MapVisual({
 
   if (!key || loadError || !isLoaded) {
     return (
-      <FallbackMap markers={markers} points={points}>
+      <FallbackMap markers={markers} points={points} onMarkerSelect={onMarkerSelect}>
         {children}
       </FallbackMap>
     );
@@ -106,10 +106,12 @@ export function MapVisual({
 export function FallbackMap({
   markers,
   points,
+  onMarkerSelect,
   children
 }: {
   markers?: MarkerLike[] | undefined;
   points?: HeatmapPoint[] | undefined;
+  onMarkerSelect?: ((marker: MarkerLike) => void) | undefined;
   children?: ReactNode;
 }) {
   const markerList =
@@ -193,6 +195,25 @@ export function FallbackMap({
           }}
         />
       ))}
+      {onMarkerSelect
+        ? markerList.map((marker, index) => {
+            const x = 100 + ((index * 137) % 700);
+            const y = 130 + ((index * 83) % 310);
+            return (
+              <button
+                key={marker.nodeId}
+                type="button"
+                aria-label={`Select marker ${marker.nodeId}`}
+                className="absolute size-12 -translate-x-1/2 -translate-y-1/2 rounded-full focus:outline-none focus:ring-2 focus:ring-command focus:ring-offset-2"
+                style={{
+                  left: `${(x / 900) * 100}%`,
+                  top: `${(y / 560) * 100}%`
+                }}
+                onClick={() => onMarkerSelect(marker)}
+              />
+            );
+          })
+        : null}
       {children}
     </div>
   );

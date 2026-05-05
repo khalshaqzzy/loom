@@ -2,26 +2,25 @@
 
 Document status: Active  
 Created: 2026-05-04  
-Updated: 2026-05-04  
+Updated: 2026-05-05
 Purpose: condensed execution backlog and next-session start point
 
 ## Current Repo State
 
-- Phases 0-5 are complete in repo terms.
+- Phases 0-7 are complete in repo terms.
 - Phase 4 frontend design polish is complete (ADR 0010).
 - Active npm workspaces:
   - `apps/api`
+  - `apps/e2e`
   - `apps/web`
   - `packages/contracts`
   - `packages/test-fixtures`
 - Placeholder-only directories:
   - `apps/mobile`
   - `packages/decision-tree`
+- Firmware prototype directories:
   - `firmware/loom-node`
-  - `deploy/caddy`
-  - `deploy/compose`
-  - `deploy/scripts`
-  - `.github/workflows`
+  - `firmware/loom-gateway`
 - Placeholder-only directories should use `README.md`, not placeholder `package.json` files.
 - Placeholder-only directories must not retain generated install/build artifacts such as `dist/`, empty `src/`, or `tsconfig.tsbuildinfo`.
 
@@ -38,6 +37,14 @@ Purpose: condensed execution backlog and next-session start point
 - Web map heatmap intensity uses supported Google circle overlays instead of the deprecated Google Maps Heatmap Layer.
 - Landing-page visual reference images under `.agent/designImages` are local design inputs only and must not be committed or served directly.
 - Backend tests cover unit behavior, API integration against `mongodb-memory-server` replica set, and contract snapshots.
+- `apps/e2e` provides Docker-free Playwright coverage for hosted API/web behavior using an ephemeral MongoDB replica set, dynamic API/web ports, and real backend API seeding.
+- Hosted deployment assets exist:
+  - production API and web Dockerfiles,
+  - remote Docker Compose with `mongo`, `api`, `web`, and `caddy`,
+  - Caddy routing for `loomnetwork.site` and `api.loomnetwork.site`,
+  - VM bootstrap, remote deploy, rollback, smoke, and readiness assertion scripts,
+  - main-only CI, security, CodeQL, dependency review, and production deploy workflows.
+- Operational docs now exist for environment topology, deployment, manual provisioning, and release execution.
 - Removed stale generated files from `packages/decision-tree`; it now contains only `README.md`.
 - Regenerated `package-lock.json` after removing placeholder packages from the workspace.
 - **Phase 4 frontend design polish complete (ADR 0010):**
@@ -55,23 +62,25 @@ Purpose: condensed execution backlog and next-session start point
 
 ## Next Recommended Start
 
-Start Phase 6: Hosted Web/API End-to-End Tests.
+Start Phase 8: IoT Firmware for ESP32 + LoRa + BLE.
 
-1. Add a repeatable e2e harness for API + web + MongoDB.
-2. Seed admin user, registered nodes, and simulated message batches.
-3. Cover public map/filter/lookup, admin login/node registration/search/map marker/history, and ingest-to-map/history updates end to end.
-4. Keep web business policy out of React components; backend contracts remain the policy source.
+1. Inspect the intentional PlatformIO prototypes under `firmware/loom-node` and `firmware/loom-gateway`.
+2. Reconcile firmware codec behavior with LoRa V2 constants and PRD byte-order requirements.
+3. Add testable firmware modules for codec, routing state, dedup cache, pending queue, and forwarding decisions.
+4. Keep mobile implementation deferred until firmware BLE/API contracts are stable.
 5. Do not commit `.agent/designImages` or generated `.next`/`output` artifacts.
 
 Before starting, read:
 
 - `.agent/rules.md`
-- `.agent/sessionHandoff-2026-05-04.md`
+- `.agent/sessionHandoff-2026-05-05-pr-prep.md`
 - `.agent/implementationPhases.md`
 - `docs/adr/0008-nextjs-web-workspace-and-asset-led-landing.md`
 - `docs/adr/0010-web-frontend-design-polish-and-motion.md`
 - `docs/adr/0004-google-maps-provider.md`
 - `docs/adr/0009-web-api-integration-contract.md`
+- `docs/adr/0012-docker-free-hosted-e2e-harness.md`
+- `docs/adr/0013-production-vm-cicd-runtime.md`
 
 ## Verification Baseline
 
@@ -82,3 +91,9 @@ Last passing verification:
 - `npm run typecheck`
 - `npm test`
 - `npm run build`
+- `npm run e2e`
+- `docker compose --env-file deploy/env/runtime.production.env.example -f deploy/compose/docker-compose.remote.yml config`
+
+Not completed locally because Docker Desktop's Linux engine was not running:
+
+- `docker compose --env-file deploy/env/runtime.production.env.example -f deploy/compose/docker-compose.remote.yml build`

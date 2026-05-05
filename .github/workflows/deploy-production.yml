@@ -1,0 +1,173 @@
+name: Deploy Production
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: Git ref to deploy to production
+        required: true
+        default: main
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 60
+    env:
+      APP_ENV: production
+      DEPLOY_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.git_ref || github.event.workflow_run.head_sha }}
+      REMOTE_BASE_DIR: /opt/loom/hosted
+      REMOTE_RUNTIME_ENV: /opt/loom/hosted/shared/runtime.env
+      REMOTE_HOST: ${{ secrets.PRODUCTION_VM_HOST }}
+      REMOTE_USER: ${{ secrets.PRODUCTION_VM_USER }}
+      REMOTE_PORT: ${{ secrets.PRODUCTION_VM_SSH_PORT != '' && secrets.PRODUCTION_VM_SSH_PORT || '22' }}
+      WEB_DOMAIN: loomnetwork.site
+      API_DOMAIN: api.loomnetwork.site
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_REF }}
+
+      - name: Resolve release SHA
+        run: echo "RELEASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Validate required secrets
+        shell: bash
+        env:
+          PRODUCTION_VM_HOST: ${{ secrets.PRODUCTION_VM_HOST }}
+          PRODUCTION_VM_USER: ${{ secrets.PRODUCTION_VM_USER }}
+          PRODUCTION_VM_SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_VM_SSH_PRIVATE_KEY }}
+          PRODUCTION_VM_SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_VM_SSH_KNOWN_HOSTS }}
+          PRODUCTION_CADDY_EMAIL: ${{ secrets.PRODUCTION_CADDY_EMAIL }}
+          PRODUCTION_MONGO_ROOT_USERNAME: ${{ secrets.PRODUCTION_MONGO_ROOT_USERNAME }}
+          PRODUCTION_MONGO_ROOT_PASSWORD: ${{ secrets.PRODUCTION_MONGO_ROOT_PASSWORD }}
+          PRODUCTION_MONGO_DATABASE: ${{ secrets.PRODUCTION_MONGO_DATABASE }}
+          PRODUCTION_MONGO_REPLICA_KEY: ${{ secrets.PRODUCTION_MONGO_REPLICA_KEY }}
+          PRODUCTION_SESSION_SECRET: ${{ secrets.PRODUCTION_SESSION_SECRET }}
+          PRODUCTION_ADMIN_BOOTSTRAP_USERNAME: ${{ secrets.PRODUCTION_ADMIN_BOOTSTRAP_USERNAME }}
+          PRODUCTION_ADMIN_BOOTSTRAP_PASSWORD: ${{ secrets.PRODUCTION_ADMIN_BOOTSTRAP_PASSWORD }}
+          PRODUCTION_GOOGLE_MAPS_API_KEY: ${{ secrets.PRODUCTION_GOOGLE_MAPS_API_KEY }}
+        run: |
+          for name in \
+            PRODUCTION_VM_HOST \
+            PRODUCTION_VM_USER \
+            PRODUCTION_VM_SSH_PRIVATE_KEY \
+            PRODUCTION_VM_SSH_KNOWN_HOSTS \
+            PRODUCTION_CADDY_EMAIL \
+            PRODUCTION_MONGO_ROOT_USERNAME \
+            PRODUCTION_MONGO_ROOT_PASSWORD \
+            PRODUCTION_MONGO_DATABASE \
+            PRODUCTION_MONGO_REPLICA_KEY \
+            PRODUCTION_SESSION_SECRET \
+            PRODUCTION_ADMIN_BOOTSTRAP_USERNAME \
+            PRODUCTION_ADMIN_BOOTSTRAP_PASSWORD \
+            PRODUCTION_GOOGLE_MAPS_API_KEY; do
+            value="${!name}"
+            if [[ -z "${value// }" ]]; then
+              echo "Missing required secret: ${name}" >&2
+              exit 1
+            fi
+          done
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_VM_SSH_PRIVATE_KEY }}
+
+      - name: Configure known hosts
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.PRODUCTION_VM_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Prepare remote directories
+        run: |
+          ssh -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" \
+            "mkdir -p '$REMOTE_BASE_DIR/releases/$RELEASE_SHA' '$REMOTE_BASE_DIR/shared'"
+
+      - name: Capture previous release
+        run: |
+          PREVIOUS_RELEASE=$(ssh -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" "if [ -f '$REMOTE_BASE_DIR/current_release' ]; then cat '$REMOTE_BASE_DIR/current_release'; fi")
+          echo "PREVIOUS_RELEASE=$PREVIOUS_RELEASE" >> "$GITHUB_ENV"
+
+      - name: Upload source release archive
+        run: |
+          git archive --format=tar "$RELEASE_SHA" \
+            | ssh -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" \
+              "tar -xf - -C '$REMOTE_BASE_DIR/releases/$RELEASE_SHA'"
+
+      - name: Render runtime env
+        run: |
+          cat > runtime.env <<EOF
+          APP_ENV=production
+          RELEASE_SHA=$RELEASE_SHA
+          COMPOSE_PROJECT_NAME=loom-production
+          SHARED_DIR=/opt/loom/hosted/shared
+          WEB_DOMAIN=$WEB_DOMAIN
+          API_DOMAIN=$API_DOMAIN
+          CADDY_EMAIL=${{ secrets.PRODUCTION_CADDY_EMAIL }}
+          MONGO_ROOT_USERNAME=${{ secrets.PRODUCTION_MONGO_ROOT_USERNAME }}
+          MONGO_ROOT_PASSWORD=${{ secrets.PRODUCTION_MONGO_ROOT_PASSWORD }}
+          MONGO_DATABASE=${{ secrets.PRODUCTION_MONGO_DATABASE }}
+          MONGO_REPLICA_KEY=${{ secrets.PRODUCTION_MONGO_REPLICA_KEY }}
+          SESSION_SECRET=${{ secrets.PRODUCTION_SESSION_SECRET }}
+          ADMIN_BOOTSTRAP_USERNAME=${{ secrets.PRODUCTION_ADMIN_BOOTSTRAP_USERNAME }}
+          ADMIN_BOOTSTRAP_PASSWORD=${{ secrets.PRODUCTION_ADMIN_BOOTSTRAP_PASSWORD }}
+          ADMIN_BOOTSTRAP_DISPLAY_NAME=LOOM Admin
+          GOOGLE_MAPS_API_KEY=${{ secrets.PRODUCTION_GOOGLE_MAPS_API_KEY }}
+          EOF
+
+      - name: Upload runtime env
+        run: |
+          cat runtime.env | ssh -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" \
+            "umask 077 && cat > '$REMOTE_RUNTIME_ENV'"
+
+      - name: Run VM preflight
+        run: |
+          ssh -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" \
+            "bash '$REMOTE_BASE_DIR/releases/$RELEASE_SHA/deploy/scripts/remote-preflight.sh' \
+             '$APP_ENV' '$RELEASE_SHA' '$REMOTE_BASE_DIR' '$REMOTE_RUNTIME_ENV' \
+             '$WEB_DOMAIN' '$API_DOMAIN' '$REMOTE_HOST'"
+
+      - name: Deploy on VM
+        run: |
+          ssh -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" \
+            "bash '$REMOTE_BASE_DIR/releases/$RELEASE_SHA/deploy/scripts/remote-deploy.sh' \
+             '$APP_ENV' '$RELEASE_SHA' '$REMOTE_BASE_DIR' '$REMOTE_RUNTIME_ENV'"
+
+      - name: Smoke-check production
+        env:
+          SMOKE_RETRY_COUNT: 60
+          SMOKE_RETRY_DELAY: 5
+        run: |
+          bash deploy/scripts/smoke-check.sh \
+            "https://$API_DOMAIN/health" \
+            "https://$API_DOMAIN/ready" \
+            "https://$WEB_DOMAIN"
+
+      - name: Validate readiness payload
+        run: bash deploy/scripts/assert-ready.sh "https://$API_DOMAIN/ready"
+
+      - name: Rollback production on failed validation
+        if: failure() && env.PREVIOUS_RELEASE != ''
+        run: |
+          ssh -p "$REMOTE_PORT" "$REMOTE_USER@$REMOTE_HOST" \
+            "bash '$REMOTE_BASE_DIR/releases/$RELEASE_SHA/deploy/scripts/remote-rollback.sh' \
+             '$APP_ENV' '$PREVIOUS_RELEASE' '$REMOTE_BASE_DIR' '$REMOTE_RUNTIME_ENV'"
