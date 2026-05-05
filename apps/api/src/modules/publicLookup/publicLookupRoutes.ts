@@ -1,7 +1,4 @@
-import {
-  PUBLIC_LOOKUP_GENERIC_FAILURE,
-  publicHistoryLookupRequestSchema
-} from "@loom/contracts";
+import { PUBLIC_LOOKUP_GENERIC_FAILURE, publicHistoryLookupRequestSchema } from "@loom/contracts";
 import type { AppContext } from "../../http/appContext";
 import { asyncHandler } from "../../http/asyncHandler";
 import { validateBody } from "../../http/validation";

@@ -1,8 +1,4 @@
-import {
-  MAX_NODE_ID,
-  PUBLIC_LOOKUP_GENERIC_FAILURE,
-  nodeIdNumericSchema
-} from "@loom/contracts";
+import { MAX_NODE_ID, PUBLIC_LOOKUP_GENERIC_FAILURE, nodeIdNumericSchema } from "@loom/contracts";
 import { describe, expect, it } from "vitest";
 import { loadConfig } from "../../config/env";
 import { createDedupKey } from "../../modules/ingest/dedup";

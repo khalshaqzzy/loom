@@ -65,6 +65,8 @@ describe("PublicHistoryLookup", () => {
     await userEvent.type(screen.getByLabelText(/owner birth date/i), "1990-04-12");
     await userEvent.click(screen.getByRole("button", { name: /search history/i }));
 
-    await waitFor(() => expect(screen.getByText("No matching history could be returned.")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText("No matching history could be returned.")).toBeInTheDocument()
+    );
   });
 });

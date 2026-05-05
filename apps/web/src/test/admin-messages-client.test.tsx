@@ -67,6 +67,7 @@ describe("AdminMessagesClient", () => {
 
     render(<AdminMessagesClient />);
 
-    expect(await screen.findByText("No messages match these filters.")).toBeInTheDocument();
+    expect(await screen.findByText("No messages found")).toBeInTheDocument();
+    expect(screen.getByText(/No messages match these filters/i)).toBeInTheDocument();
   });
 });

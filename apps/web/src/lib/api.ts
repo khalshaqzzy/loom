@@ -78,19 +78,21 @@ export const api = {
     return requestJson(`/api/admin/nodes${query}`, nodeListResponseSchema);
   },
   registerNode: (body: RegisterNodeRequest) =>
-    requestJson(
-      "/api/admin/nodes",
-      z.object({ node: registeredNodeSchema }),
-      {
-        method: "POST",
-        body: JSON.stringify(body)
-      }
-    ),
+    requestJson("/api/admin/nodes", z.object({ node: registeredNodeSchema }), {
+      method: "POST",
+      body: JSON.stringify(body)
+    }),
   node: (nodeId: string) =>
-    requestJson(`/api/admin/nodes/${encodeURIComponent(nodeId)}`, z.object({ node: registeredNodeSchema })),
+    requestJson(
+      `/api/admin/nodes/${encodeURIComponent(nodeId)}`,
+      z.object({ node: registeredNodeSchema })
+    ),
   nodeMessages: (nodeId: string, message?: MessageValue | "") => {
     const query = message ? `?message=${encodeURIComponent(message)}` : "";
-    return requestJson(`/api/admin/nodes/${encodeURIComponent(nodeId)}/messages${query}`, messageHistoryResponseSchema);
+    return requestJson(
+      `/api/admin/nodes/${encodeURIComponent(nodeId)}/messages${query}`,
+      messageHistoryResponseSchema
+    );
   },
   adminMessages: (params: URLSearchParams) =>
     requestJson(`/api/admin/messages?${params.toString()}`, messageHistoryResponseSchema)

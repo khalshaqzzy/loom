@@ -7,7 +7,9 @@ export const validateBody =
   (request: Request, _response: Response, next: NextFunction): void => {
     const result = schema.safeParse(request.body);
     if (!result.success) {
-      next(new HttpError(400, "invalid_request", result.error.issues[0]?.message ?? "Invalid request."));
+      next(
+        new HttpError(400, "invalid_request", result.error.issues[0]?.message ?? "Invalid request.")
+      );
       return;
     }
     request.body = result.data;
@@ -19,7 +21,9 @@ export const validateQuery =
   (request: Request, _response: Response, next: NextFunction): void => {
     const result = schema.safeParse(request.query);
     if (!result.success) {
-      next(new HttpError(400, "invalid_query", result.error.issues[0]?.message ?? "Invalid query."));
+      next(
+        new HttpError(400, "invalid_query", result.error.issues[0]?.message ?? "Invalid query.")
+      );
       return;
     }
     request.validatedQuery = result.data;

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,7 +6,15 @@ import { AdminNodesClient } from "@/components/admin/AdminNodesClient";
 import { api } from "@/lib/api";
 
 vi.mock("next/link", () => ({
-  default: ({ children, href, className }: { children: React.ReactNode; href: string; className?: string }) => (
+  default: ({
+    children,
+    href,
+    className
+  }: {
+    children: React.ReactNode;
+    href: string;
+    className?: string;
+  }) => (
     <a href={href} className={className}>
       {children}
     </a>
@@ -75,10 +83,13 @@ describe("AdminNodesClient", () => {
     await screen.findByText("Ayu Lestari");
 
     await userEvent.click(screen.getAllByRole("button", { name: /register node/i }).at(-1)!);
-    await userEvent.type(screen.getByLabelText("Node ID"), "99");
-    await userEvent.type(screen.getByLabelText(/owner full name/i), "Bima Santoso");
-    await userEvent.type(screen.getByLabelText(/owner birth date/i), "1990-04-12");
-    await userEvent.click(screen.getAllByRole("button", { name: /register node/i }).at(-1)!);
+    const form = screen.getByText("Register a node").closest(".relative")?.querySelector("form");
+    expect(form).not.toBeNull();
+    const dialog = within(form!);
+    await userEvent.type(dialog.getByLabelText(/^Node ID/i), "99");
+    await userEvent.type(dialog.getByLabelText(/owner full name/i), "Bima Santoso");
+    await userEvent.type(dialog.getByLabelText(/owner birth date/i), "1990-04-12");
+    await userEvent.click(dialog.getByRole("button", { name: /register node/i }));
 
     await waitFor(() =>
       expect(mockApi.registerNode).toHaveBeenCalledWith({
@@ -97,10 +108,13 @@ describe("AdminNodesClient", () => {
     await screen.findByText("Ayu Lestari");
 
     await userEvent.click(screen.getAllByRole("button", { name: /register node/i }).at(-1)!);
-    await userEvent.type(screen.getByLabelText("Node ID"), "42");
-    await userEvent.type(screen.getByLabelText(/owner full name/i), "Ayu Lestari");
-    await userEvent.type(screen.getByLabelText(/owner birth date/i), "1990-04-12");
-    await userEvent.click(screen.getAllByRole("button", { name: /register node/i }).at(-1)!);
+    const form = screen.getByText("Register a node").closest(".relative")?.querySelector("form");
+    expect(form).not.toBeNull();
+    const dialog = within(form!);
+    await userEvent.type(dialog.getByLabelText(/^Node ID/i), "42");
+    await userEvent.type(dialog.getByLabelText(/owner full name/i), "Ayu Lestari");
+    await userEvent.type(dialog.getByLabelText(/owner birth date/i), "1990-04-12");
+    await userEvent.click(dialog.getByRole("button", { name: /register node/i }));
 
     expect(await screen.findByText("Node ID already exists.")).toBeInTheDocument();
   });

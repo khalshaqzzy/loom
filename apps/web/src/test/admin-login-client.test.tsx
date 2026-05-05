@@ -33,10 +33,12 @@ describe("AdminLoginClient", () => {
 
     render(<AdminLoginClient />);
     await userEvent.type(screen.getByLabelText(/username/i), "admin");
-    await userEvent.type(screen.getByLabelText(/password/i), "password");
+    await userEvent.type(screen.getByLabelText("Password", { selector: "input" }), "password");
     await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
-    await waitFor(() => expect(mockApi.login).toHaveBeenCalledWith({ username: "admin", password: "password" }));
+    await waitFor(() =>
+      expect(mockApi.login).toHaveBeenCalledWith({ username: "admin", password: "password" })
+    );
     expect(replace).toHaveBeenCalledWith("/admin");
   });
 
@@ -45,7 +47,7 @@ describe("AdminLoginClient", () => {
 
     render(<AdminLoginClient />);
     await userEvent.type(screen.getByLabelText(/username/i), "admin");
-    await userEvent.type(screen.getByLabelText(/password/i), "wrong");
+    await userEvent.type(screen.getByLabelText("Password", { selector: "input" }), "wrong");
     await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
 
     expect(await screen.findByText("Invalid username or password.")).toBeInTheDocument();

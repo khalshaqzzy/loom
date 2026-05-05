@@ -50,8 +50,12 @@ describe("PublicMapClient", () => {
     render(<PublicMapClient />);
 
     await waitFor(() => expect(mockApi.publicHeatmap).toHaveBeenCalledWith(""));
-    expect(await screen.findByText("Nodes 1")).toBeInTheDocument();
-    expect(screen.getByText("Reports 2")).toBeInTheDocument();
+    expect(
+      await screen.findByText((_, element) => element?.textContent === "Nodes 1")
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.textContent === "Reports 2")
+    ).toBeInTheDocument();
   });
 
   it("reloads heatmap data when the message filter changes", async () => {
@@ -68,7 +72,9 @@ describe("PublicMapClient", () => {
 
     render(<PublicMapClient />);
 
-    expect(await screen.findByText("Map data is unavailable. History lookup remains available.")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Map data is unavailable. History lookup remains available.")
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /search history/i })).toBeInTheDocument();
   });
 });
