@@ -52,11 +52,17 @@ export default function AdminLoginPage() {
               Secure authentication
             </span>
             <span className="flex items-center gap-2">
-              <span className="size-1.5 rounded-full bg-[var(--mesh)] animate-breathe" style={{ animationDelay: "0.8s" }} />
+              <span
+                className="size-1.5 rounded-full bg-[var(--mesh)] animate-breathe"
+                style={{ animationDelay: "0.8s" }}
+              />
               Role-based access
             </span>
             <span className="flex items-center gap-2">
-              <span className="size-1.5 rounded-full bg-[var(--mesh)] animate-breathe" style={{ animationDelay: "1.6s" }} />
+              <span
+                className="size-1.5 rounded-full bg-[var(--mesh)] animate-breathe"
+                style={{ animationDelay: "1.6s" }}
+              />
               Audit ready
             </span>
           </div>

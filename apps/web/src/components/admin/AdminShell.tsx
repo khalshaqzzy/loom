@@ -126,7 +126,10 @@ export function AdminShell({ title, children }: { title: string; children: React
       {/* Mobile nav overlay */}
       {mobileNav && (
         <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-slate-950/30 backdrop-blur-sm" onClick={() => setMobileNav(false)} />
+          <div
+            className="absolute inset-0 bg-slate-950/30 backdrop-blur-sm"
+            onClick={() => setMobileNav(false)}
+          />
           <aside className="absolute inset-y-0 left-0 w-72 bg-white/95 backdrop-blur-xl shadow-xl animate-slide-up">
             <div className="px-6 pt-7 pb-5">
               <Brand />
@@ -142,9 +145,7 @@ export function AdminShell({ title, children }: { title: string; children: React
                       href={item.href}
                       onClick={() => setMobileNav(false)}
                       className={`flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm font-semibold transition ${
-                        active
-                          ? "bg-command text-white"
-                          : "text-slate-600 hover:bg-slate-100"
+                        active ? "bg-command text-white" : "text-slate-600 hover:bg-slate-100"
                       }`}
                     >
                       <Icon size={19} weight={active ? "bold" : "regular"} />
@@ -168,20 +169,33 @@ export function AdminShell({ title, children }: { title: string; children: React
               aria-label="Open navigation"
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                <path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                <path
+                  d="M3 5h14M3 10h14M3 15h14"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                />
               </svg>
             </button>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">LOOM operations</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                LOOM operations
+              </p>
               <h1 className="text-xl font-black tracking-tight text-slate-950">{title}</h1>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden items-center gap-2.5 rounded-lg border border-slate-200/70 bg-white/80 px-3.5 py-2 text-sm font-semibold md:flex">
               <StatusDot tone="mesh" size="xs" />
-              <span className="text-slate-600">{session.admin?.displayName ?? session.admin?.username}</span>
+              <span className="text-slate-600">
+                {session.admin?.displayName ?? session.admin?.username}
+              </span>
             </div>
-            <Button variant="ghost" onClick={logout} className="text-slate-500 hover:text-slate-700">
+            <Button
+              variant="ghost"
+              onClick={logout}
+              className="text-slate-500 hover:text-slate-700"
+            >
               <SignOut size={17} weight="bold" />
               <span className="hidden sm:inline">Logout</span>
             </Button>

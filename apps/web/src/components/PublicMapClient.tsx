@@ -9,7 +9,16 @@ import { api } from "@/lib/api";
 import { formatJakartaTime, messageValueOptions } from "@/lib/labels";
 import { MapVisual } from "./MapVisual";
 import { PublicHistoryLookup } from "./PublicHistoryLookup";
-import { Badge, Button, EmptyState, InlineAlert, Panel, SelectField, Skeleton, StatusDot } from "./ui";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  InlineAlert,
+  Panel,
+  SelectField,
+  Skeleton,
+  StatusDot
+} from "./ui";
 
 type Marker = z.infer<typeof markerSchema>;
 
@@ -28,7 +37,10 @@ export function PublicMapClient() {
     else setLoading(true);
     setError("");
     try {
-      const [heatmap, markerResponse] = await Promise.all([api.publicHeatmap(message), api.publicMarkers()]);
+      const [heatmap, markerResponse] = await Promise.all([
+        api.publicHeatmap(message),
+        api.publicMarkers()
+      ]);
       setPoints(heatmap.points);
       setMarkers(markerResponse.markers);
     } catch {
@@ -77,7 +89,12 @@ export function PublicMapClient() {
                 </button>
               </Panel>
               <Panel className="p-2">
-                <SelectField label="" value={mapType} onChange={(event) => setMapType(event.target.value)} className="text-xs">
+                <SelectField
+                  label=""
+                  value={mapType}
+                  onChange={(event) => setMapType(event.target.value)}
+                  className="text-xs"
+                >
                   <option value="roadmap">Roadmap</option>
                   <option value="satellite">Satellite</option>
                   <option value="terrain">Terrain</option>
@@ -123,7 +140,9 @@ export function PublicMapClient() {
               <MapTrifold size={22} weight="bold" />
             </div>
             <div>
-              <h1 className="text-lg font-black tracking-tight text-slate-950">Public network map</h1>
+              <h1 className="text-lg font-black tracking-tight text-slate-950">
+                Public network map
+              </h1>
               <p className="text-xs text-slate-500">Live heatmap of activity and connectivity</p>
             </div>
           </div>
@@ -146,7 +165,11 @@ export function PublicMapClient() {
               loading={refreshing}
               disabled={loading}
             >
-              <ArrowClockwise size={17} weight="bold" className={refreshing ? "animate-spin-slow" : ""} />
+              <ArrowClockwise
+                size={17}
+                weight="bold"
+                className={refreshing ? "animate-spin-slow" : ""}
+              />
               Refresh
             </Button>
           </div>
@@ -171,7 +194,9 @@ export function PublicMapClient() {
                 <div className="min-w-0 flex-1">
                   <p className="font-mono text-sm font-bold text-slate-800">{marker.nodeId}</p>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    {marker.lastMessageAt ? formatJakartaTime(marker.lastMessageAt) : "No reports yet"}
+                    {marker.lastMessageAt
+                      ? formatJakartaTime(marker.lastMessageAt)
+                      : "No reports yet"}
                   </p>
                 </div>
                 <Badge tone={marker.status === "active" ? "mesh" : "command"} dot>
@@ -190,13 +215,17 @@ export function PublicMapClient() {
         </Panel>
 
         {/* Privacy note */}
-        <Panel className="animate-fade-up border-[var(--safe)]/20 bg-[var(--safe-soft)]/30 p-5" style={{ animationDelay: "150ms" }}>
+        <Panel
+          className="animate-fade-up border-[var(--safe)]/20 bg-[var(--safe-soft)]/30 p-5"
+          style={{ animationDelay: "150ms" }}
+        >
           <div className="flex items-start gap-3">
             <ShieldCheck size={20} weight="bold" className="mt-0.5 flex-none text-[var(--safe)]" />
             <div>
               <p className="text-sm font-bold text-[var(--safe)]">Privacy protected</p>
               <p className="mt-1 text-xs leading-relaxed text-slate-600">
-                Public markers do not expose owner identity. Use history lookup with full name and birth date to find specific messages.
+                Public markers do not expose owner identity. Use history lookup with full name and
+                birth date to find specific messages.
               </p>
             </div>
           </div>

@@ -16,7 +16,9 @@ export function Brand({ inverse = false }: { inverse?: boolean }) {
           }`}
         />
       </span>
-      <span className={`text-[1.7rem] font-black tracking-tight ${inverse ? "text-blue-400" : "text-command"}`}>
+      <span
+        className={`text-[1.7rem] font-black tracking-tight ${inverse ? "text-blue-400" : "text-command"}`}
+      >
         LOOM
       </span>
     </Link>

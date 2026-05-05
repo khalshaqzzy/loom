@@ -45,11 +45,18 @@ export function PublicHistoryLookup({ compact = false }: { compact?: boolean }) 
               </div>
             )}
             <div>
-              <h1 className={compact ? "text-lg font-black tracking-tight text-slate-950" : "text-2xl font-black tracking-tight text-slate-950"}>
+              <h1
+                className={
+                  compact
+                    ? "text-lg font-black tracking-tight text-slate-950"
+                    : "text-2xl font-black tracking-tight text-slate-950"
+                }
+              >
                 Privacy lookup
               </h1>
               <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                Enter the owner&apos;s full name and birth date. Failed attempts return one generic response.
+                Enter the owner&apos;s full name and birth date. Failed attempts return one generic
+                response.
               </p>
             </div>
           </div>
@@ -69,7 +76,11 @@ export function PublicHistoryLookup({ compact = false }: { compact?: boolean }) 
           onChange={(event) => setOwnerBirthDate(event.target.value)}
           required
         />
-        <Button type="submit" loading={loading} disabled={ownerFullName.trim().length < 2 || !ownerBirthDate}>
+        <Button
+          type="submit"
+          loading={loading}
+          disabled={ownerFullName.trim().length < 2 || !ownerBirthDate}
+        >
           <MagnifyingGlass size={17} weight="bold" />
           Search history
         </Button>
@@ -98,7 +109,9 @@ export function PublicHistoryLookup({ compact = false }: { compact?: boolean }) 
                       Node {message.senderNodeId}
                     </span>
                   </div>
-                  <p className="mt-2.5 text-sm text-slate-600">{formatJakartaTime(message.timestamp)}</p>
+                  <p className="mt-2.5 text-sm text-slate-600">
+                    {formatJakartaTime(message.timestamp)}
+                  </p>
                 </div>
               ))}
             </div>

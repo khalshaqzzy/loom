@@ -68,12 +68,14 @@ Extend the shared component library:
 ### Page Improvements
 
 **Admin Shell** (`AdminShell.tsx`):
+
 - Refined sidebar with active indicator bar, hover transitions, glassmorphism header
 - Mobile drawer navigation with backdrop blur
 - Loading state with spinner instead of skeleton block
 - User badge with status dot
 
 **Admin Overview** (`AdminOverviewClient.tsx`):
+
 - Asymmetric bento grid: `2fr+1fr` row 1, `0.7fr+1.6fr` row 2
 - Metric cards with count-up animation, staggered entrance, hover lift
 - Node status list with staggered row entrance
@@ -81,12 +83,14 @@ Extend the shared component library:
 - Arrow links to full pages
 
 **Admin Login** (`AdminLoginClient.tsx`, `login/page.tsx`):
+
 - Animated mesh-line SVG overlay on left panel
 - Glassmorphism form panel with refined field styling
 - Password visibility toggle
 - Refined loading and error states
 
 **Public Map** (`PublicMapClient.tsx`):
+
 - Refined map controls with toggle button states
 - Status bar with breathing live indicator
 - Marker preview cards with staggered entrance
@@ -94,17 +98,20 @@ Extend the shared component library:
 - Refresh button with rotation animation
 
 **Public History** (`PublicHistoryLookup.tsx`, `history/page.tsx`):
+
 - Refined lookup form with icon header
 - Staggered result card entrance
 - Privacy explanation panel with staggered info cards
 - Empty state component integration
 
 **Admin Map** (`AdminMapClient.tsx`):
+
 - Refined info cards with consistent styling
 - Empty state for no selection
 - Staggered entrance for selected node details
 
 **Admin Nodes** (`AdminNodesClient.tsx`):
+
 - Staggered table row entrance
 - Refined register dialog with slide-up animation, backdrop blur
 - Search icon in search field
@@ -112,26 +119,31 @@ Extend the shared component library:
 - Cancel button in dialog
 
 **Admin Node Detail** (`AdminNodeDetailClient.tsx`):
+
 - Hero-style header with gradient wash
 - Back-to-nodes navigation link
 - Info cards with icon + staggered entrance
 - Refined message filter and table
 
 **Admin Messages** (`AdminMessagesClient.tsx`):
+
 - Staggered table rows
 - Empty state integration
 - Refined filter bar
 
 **Admin Settings** (`settings/page.tsx`):
+
 - Two-column layout with diagnostics and security panels
 - Staggered security info cards
 
 **Not Found** (`not-found.tsx`):
+
 - Animated mesh-line background
 - Staggered entrance for content blocks
 - Warning icon and refined typography
 
 **Shared Components**:
+
 - `Brand.tsx` - use Broadcast icon with breathing pulse animation
 - `PublicTopBar.tsx` - glassmorphism, animated nav link underlines
 - `MessageTable.tsx` - staggered row entrance, hover highlight, refined source badges

@@ -46,7 +46,11 @@ export function AdminMapClient() {
         onMarkerSelect={(marker) => setSelected(marker as Marker)}
       >
         <Panel className="absolute left-4 top-4 flex flex-wrap items-end gap-3 p-3">
-          <SelectField label="Message value" value={message} onChange={(event) => setMessage(event.target.value as MessageValue | "")}>
+          <SelectField
+            label="Message value"
+            value={message}
+            onChange={(event) => setMessage(event.target.value as MessageValue | "")}
+          >
             <option value="">All categories</option>
             {messageValueOptions.map((option) => (
               <option value={option.value} key={option.value}>
@@ -54,13 +58,20 @@ export function AdminMapClient() {
               </option>
             ))}
           </SelectField>
-          <SelectField label="Map type" value={mapType} onChange={(event) => setMapType(event.target.value)}>
+          <SelectField
+            label="Map type"
+            value={mapType}
+            onChange={(event) => setMapType(event.target.value)}
+          >
             <option value="roadmap">Roadmap</option>
             <option value="satellite">Satellite</option>
             <option value="terrain">Terrain</option>
             <option value="hybrid">Hybrid</option>
           </SelectField>
-          <Button variant={markerOnly ? "command" : "secondary"} onClick={() => setMarkerOnly((value) => !value)}>
+          <Button
+            variant={markerOnly ? "command" : "secondary"}
+            onClick={() => setMarkerOnly((value) => !value)}
+          >
             Marker-only
           </Button>
         </Panel>
@@ -80,11 +91,16 @@ export function AdminMapClient() {
           <div className="mt-5 animate-fade-up">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Node ID</p>
-                <h3 className="mt-1 font-mono text-2xl font-black text-slate-950">{selected.nodeId}</h3>
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  Node ID
+                </p>
+                <h3 className="mt-1 font-mono text-2xl font-black text-slate-950">
+                  {selected.nodeId}
+                </h3>
               </div>
               <Badge tone={selected.status === "active" ? "mesh" : "command"} dot>
-                {nodeStatusLabels[selected.status as keyof typeof nodeStatusLabels] ?? selected.status}
+                {nodeStatusLabels[selected.status as keyof typeof nodeStatusLabels] ??
+                  selected.status}
               </Badge>
             </div>
             <div className="mt-5 grid gap-3">
@@ -93,7 +109,11 @@ export function AdminMapClient() {
               <InfoCard label="Last message" value={formatJakartaTime(selected.lastMessageAt)} />
               <InfoCard
                 label="Range to gateway"
-                value={selected.lastRangeToGateway === null ? "Unavailable" : String(selected.lastRangeToGateway)}
+                value={
+                  selected.lastRangeToGateway === null
+                    ? "Unavailable"
+                    : String(selected.lastRangeToGateway)
+                }
                 mono
               />
             </div>
@@ -119,11 +139,21 @@ export function AdminMapClient() {
   );
 }
 
-function InfoCard({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function InfoCard({
+  label,
+  value,
+  mono = false
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
   return (
     <div className="rounded-lg border border-slate-100 bg-slate-50/60 px-3.5 py-2.5">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className={`mt-0.5 text-sm font-semibold text-slate-800 ${mono ? "font-mono" : ""}`}>{value}</p>
+      <p className={`mt-0.5 text-sm font-semibold text-slate-800 ${mono ? "font-mono" : ""}`}>
+        {value}
+      </p>
     </div>
   );
 }

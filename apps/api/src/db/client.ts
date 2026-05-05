@@ -58,7 +58,9 @@ export const ensureIndexes = async (collections: MongoCollections): Promise<void
   ]);
 };
 
-export const checkReadiness = async (context: MongoContext): Promise<{ mongo: boolean; indexes: boolean }> => {
+export const checkReadiness = async (
+  context: MongoContext
+): Promise<{ mongo: boolean; indexes: boolean }> => {
   try {
     await context.db.command({ ping: 1 });
     const messageIndexes = await context.collections.meshMessages.indexExists("dedupKey_1");

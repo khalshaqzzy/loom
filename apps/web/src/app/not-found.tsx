@@ -1,12 +1,20 @@
 import { Brand } from "@/components/Brand";
 import { LinkButton } from "@/components/ui";
-import { MapTrifold, ClockCounterClockwise, UserCircle, WarningCircle } from "@phosphor-icons/react/dist/ssr";
+import {
+  MapTrifold,
+  ClockCounterClockwise,
+  UserCircle,
+  WarningCircle
+} from "@phosphor-icons/react/dist/ssr";
 
 export default function NotFound() {
   return (
     <main className="grid min-h-[100dvh] place-items-center bg-gradient-to-br from-slate-50 via-[#eef5f6] to-slate-100/60 px-5">
       {/* Subtle mesh lines */}
-      <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.07]" aria-hidden="true">
+      <svg
+        className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.07]"
+        aria-hidden="true"
+      >
         <path
           d="M80 120 C200 80 280 180 420 130 S600 90 780 150"
           fill="none"
@@ -44,7 +52,8 @@ export default function NotFound() {
           className="mt-4 text-lg leading-relaxed text-slate-500 animate-fade-up"
           style={{ animationDelay: "160ms" }}
         >
-          The page you are looking for does not exist or has been moved. Return to the public map, privacy lookup, or admin console.
+          The page you are looking for does not exist or has been moved. Return to the public map,
+          privacy lookup, or admin console.
         </p>
         <div
           className="mt-8 flex flex-wrap justify-center gap-3 animate-fade-up"

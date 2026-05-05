@@ -18,7 +18,9 @@ export const fixtureSecondNodeOwner = {
   ownerBirthDate: "1988-08-11"
 };
 
-export const validMeshMessage = (overrides: Partial<BurstIngestMessage> = {}): BurstIngestMessage => ({
+export const validMeshMessage = (
+  overrides: Partial<BurstIngestMessage> = {}
+): BurstIngestMessage => ({
   senderNodeId: 42,
   seqId: 1,
   senderRangeToGateway: 2,

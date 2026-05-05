@@ -40,13 +40,18 @@ export const createIngestRouter = (context: AppContext): Router => {
       const batchId = batchObjectId.toHexString();
       const accepted: z.infer<typeof ingestAcceptedItemSchema>[] = [];
       const duplicate: z.infer<typeof ingestAcceptedItemSchema>[] = [];
-      const rejected: { senderNodeId?: number; seqId?: number; index: number; reason: string }[] = [];
-      const uploaderId = envelope.mobileInstallationId ?? envelope.uploaderNodeId?.toString() ?? null;
+      const rejected: { senderNodeId?: number; seqId?: number; index: number; reason: string }[] =
+        [];
+      const uploaderId =
+        envelope.mobileInstallationId ?? envelope.uploaderNodeId?.toString() ?? null;
 
       for (const [index, rawMessage] of envelope.messages.entries()) {
         const parsedMessage = burstIngestMessageSchema.safeParse(rawMessage);
         if (!parsedMessage.success) {
-          rejected.push({ index, reason: parsedMessage.error.issues[0]?.message ?? "Invalid message." });
+          rejected.push({
+            index,
+            reason: parsedMessage.error.issues[0]?.message ?? "Invalid message."
+          });
           continue;
         }
 

@@ -116,10 +116,10 @@ For most implementation sessions, read in this order:
 2. the newest `.agent/sessionHandoff-YYYY-MM-DD.md`
 3. `.agent/implementationPhases.md`
 4. `.agent/phaseBacklog.md`
-6. `.agent/deploymentGuide.md` if the session touches environments, secrets, deploys, VMs
-7. `.agent/releaseExecutionChecklist.md` if the session is preparing or guiding a live rollout
-8. `.agent/PRD.md` if product behavior is involved
-9. relevant `docs/adr/` entries when the task touches architecture, contracts, runtime behavior, or deployment shape
+5. `.agent/deploymentGuide.md` if the session touches environments, secrets, deploys, VMs
+6. `.agent/releaseExecutionChecklist.md` if the session is preparing or guiding a live rollout
+7. `.agent/PRD.md` if product behavior is involved
+8. relevant `docs/adr/` entries when the task touches architecture, contracts, runtime behavior, or deployment shape
 
 ## 4. When To Update Existing Files
 
@@ -240,7 +240,6 @@ When updating or adding ADRs:
 - capture tradeoffs and operational caveats, not just happy-path outcomes
 - note follow-up work if the decision intentionally defers later improvements
 
-
 ## 10. Required Updates After Major Sessions
 
 After a major implementation or deployment-prep session, usually do all of the following:
@@ -251,6 +250,5 @@ After a major implementation or deployment-prep session, usually do all of the f
 4. update any affected environment/deployment docs
 5. add the next phase kickoff file if the next session start is now clear
 6. add or update a `docs/adr/` entry if the session introduced or changed a durable architecture decision
-
 
 If future sessions make these stale, update them before ending the session.

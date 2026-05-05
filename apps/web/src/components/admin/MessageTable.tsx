@@ -33,15 +33,21 @@ export function MessageTable({ messages }: { messages: MeshMessageResponse[] }) 
                   {messageLabel(message.message)}
                 </Badge>
               </td>
-              <td className="py-3 font-mono text-xs font-semibold text-slate-700">{message.senderNodeId}</td>
+              <td className="py-3 font-mono text-xs font-semibold text-slate-700">
+                {message.senderNodeId}
+              </td>
               <td className="py-3 font-mono text-xs text-slate-500">{message.seqId}</td>
               <td className="py-3">
                 <span className="rounded bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
                   {message.source}
                 </span>
               </td>
-              <td className="py-3 text-xs text-slate-500">{formatJakartaTime(message.timestamp)}</td>
-              <td className="py-3 text-xs text-slate-500">{formatJakartaTime(message.receivedByBackendAt)}</td>
+              <td className="py-3 text-xs text-slate-500">
+                {formatJakartaTime(message.timestamp)}
+              </td>
+              <td className="py-3 text-xs text-slate-500">
+                {formatJakartaTime(message.receivedByBackendAt)}
+              </td>
               <td className="py-3 font-mono text-xs text-slate-500">
                 {message.senderRangeToGateway} / {message.lastForwarderRangeToGateway}
               </td>

@@ -17,12 +17,26 @@ export default function PublicHistoryPage() {
               <div className="grid size-12 place-items-center rounded-2xl bg-[var(--safe-soft)] text-[var(--safe)]">
                 <ShieldCheck size={26} weight="bold" />
               </div>
-              <h2 className="mt-5 text-xl font-black tracking-tight text-slate-950">Privacy boundaries</h2>
+              <h2 className="mt-5 text-xl font-black tracking-tight text-slate-950">
+                Privacy boundaries
+              </h2>
               <div className="mt-6 grid gap-4">
                 {[
-                  { icon: UserCircle, title: "Identity verified", copy: "Public lookup requires a full name and birth date together." },
-                  { icon: EyeSlash, title: "Generic responses", copy: "Failed lookups remain generic and do not reveal whether a name exists." },
-                  { icon: LockKey, title: "Never displayed", copy: "Birth dates are used for validation and are never shown in the web UI." }
+                  {
+                    icon: UserCircle,
+                    title: "Identity verified",
+                    copy: "Public lookup requires a full name and birth date together."
+                  },
+                  {
+                    icon: EyeSlash,
+                    title: "Generic responses",
+                    copy: "Failed lookups remain generic and do not reveal whether a name exists."
+                  },
+                  {
+                    icon: LockKey,
+                    title: "Never displayed",
+                    copy: "Birth dates are used for validation and are never shown in the web UI."
+                  }
                 ].map((item, index) => {
                   const Icon = item.icon;
                   return (

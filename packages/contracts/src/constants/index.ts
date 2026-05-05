@@ -8,4 +8,5 @@ export const LORA_PACKET_TYPES = {
 } as const;
 
 export const MAX_INGEST_BATCH_SIZE = 100;
-export const PUBLIC_LOOKUP_GENERIC_FAILURE = "Unable to find message history for the provided details.";
+export const PUBLIC_LOOKUP_GENERIC_FAILURE =
+  "Unable to find message history for the provided details.";

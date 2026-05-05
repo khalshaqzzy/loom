@@ -1,25 +1,29 @@
 import clsx from "clsx";
 import Link from "next/link";
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
-import {
-  CheckCircle,
-  Info,
-  WarningCircle,
-  XCircle
-} from "@phosphor-icons/react/dist/ssr";
+import { CheckCircle, Info, WarningCircle, XCircle } from "@phosphor-icons/react/dist/ssr";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: "command" | "secondary" | "ghost" | "danger";
   loading?: boolean;
 };
 
-export function Button({ className, variant = "command", loading, disabled, children, ...props }: ButtonProps) {
+export function Button({
+  className,
+  variant = "command",
+  loading,
+  disabled,
+  children,
+  ...props
+}: ButtonProps) {
   return (
     <button
       className={clsx(
         "focus-ring tactile-press inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-55",
-        variant === "command" && "bg-command text-white shadow-soft hover:bg-blue-700 hover:shadow-md",
-        variant === "secondary" && "border border-border bg-white text-slate-900 shadow-soft hover:border-slate-300 hover:shadow-md",
+        variant === "command" &&
+          "bg-command text-white shadow-soft hover:bg-blue-700 hover:shadow-md",
+        variant === "secondary" &&
+          "border border-border bg-white text-slate-900 shadow-soft hover:border-slate-300 hover:shadow-md",
         variant === "ghost" && "text-slate-700 hover:bg-slate-100/70",
         variant === "danger" && "bg-[var(--critical)] text-white hover:bg-red-800",
         loading && "relative text-transparent",
@@ -51,8 +55,10 @@ export function LinkButton({ className, variant = "command", href, ...props }: L
       href={href}
       className={clsx(
         "focus-ring tactile-press inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold transition",
-        variant === "command" && "bg-command text-white shadow-soft hover:bg-blue-700 hover:shadow-md",
-        variant === "secondary" && "border border-border bg-white text-slate-900 shadow-soft hover:border-slate-300 hover:shadow-md",
+        variant === "command" &&
+          "bg-command text-white shadow-soft hover:bg-blue-700 hover:shadow-md",
+        variant === "secondary" &&
+          "border border-border bg-white text-slate-900 shadow-soft hover:border-slate-300 hover:shadow-md",
         variant === "ghost" && "text-slate-700 hover:bg-slate-100/70",
         variant === "danger" && "bg-[var(--critical)] text-white hover:bg-red-800",
         className
@@ -62,7 +68,15 @@ export function LinkButton({ className, variant = "command", href, ...props }: L
   );
 }
 
-export function Panel({ className, children, style }: { className?: string; children: ReactNode; style?: React.CSSProperties }) {
+export function Panel({
+  className,
+  children,
+  style
+}: {
+  className?: string;
+  children: ReactNode;
+  style?: React.CSSProperties;
+}) {
   return (
     <div
       className={clsx(
@@ -76,7 +90,15 @@ export function Panel({ className, children, style }: { className?: string; chil
   );
 }
 
-export function PanelFlush({ className, children, style }: { className?: string; children: ReactNode; style?: React.CSSProperties }) {
+export function PanelFlush({
+  className,
+  children,
+  style
+}: {
+  className?: string;
+  children: ReactNode;
+  style?: React.CSSProperties;
+}) {
   return (
     <div
       className={clsx(
@@ -102,7 +124,9 @@ export function Field({
       <input
         className={clsx(
           "focus-ring min-h-11 rounded-lg border bg-white px-3.5 text-sm text-slate-900 shadow-sm transition-colors placeholder:text-slate-400",
-          error ? "border-[var(--critical)] bg-[var(--critical-soft)]/30" : "border-slate-200 hover:border-slate-300"
+          error
+            ? "border-[var(--critical)] bg-[var(--critical-soft)]/30"
+            : "border-slate-200 hover:border-slate-300"
         )}
         {...props}
       />
@@ -136,7 +160,15 @@ export function SelectField({
   );
 }
 
-export function Badge({ children, tone = "command", dot = false }: { children: ReactNode; tone?: string; dot?: boolean }) {
+export function Badge({
+  children,
+  tone = "command",
+  dot = false
+}: {
+  children: ReactNode;
+  tone?: string;
+  dot?: boolean;
+}) {
   const toneClass =
     tone === "safe"
       ? "bg-[var(--safe-soft)] text-[var(--safe)]"
@@ -162,14 +194,25 @@ export function Badge({ children, tone = "command", dot = false }: { children: R
               ? "bg-slate-400"
               : "bg-command";
   return (
-    <span className={clsx("inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold", toneClass)}>
+    <span
+      className={clsx(
+        "inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold",
+        toneClass
+      )}
+    >
       {dot ? <span className={clsx("size-1.5 rounded-full", dotColor)} /> : null}
       {children}
     </span>
   );
 }
 
-export function StatusDot({ tone = "mesh", size = "sm" }: { tone?: string; size?: "xs" | "sm" | "md" }) {
+export function StatusDot({
+  tone = "mesh",
+  size = "sm"
+}: {
+  tone?: string;
+  size?: "xs" | "sm" | "md";
+}) {
   const color =
     tone === "safe" || tone === "mesh"
       ? "bg-[var(--mesh)]"
@@ -183,7 +226,13 @@ export function StatusDot({ tone = "mesh", size = "sm" }: { tone?: string; size?
     <span className="relative inline-flex">
       <span className={clsx("rounded-full", color, sizeClass)} />
       {(tone === "safe" || tone === "mesh") && (
-        <span className={clsx("absolute inset-0 animate-breathe rounded-full opacity-40", color, sizeClass)} />
+        <span
+          className={clsx(
+            "absolute inset-0 animate-breathe rounded-full opacity-40",
+            color,
+            sizeClass
+          )}
+        />
       )}
     </span>
   );
@@ -197,14 +246,22 @@ export function InlineAlert({
   tone?: "info" | "error" | "success" | "warning";
 }) {
   const Icon =
-    tone === "error" ? XCircle : tone === "success" ? CheckCircle : tone === "warning" ? WarningCircle : Info;
+    tone === "error"
+      ? XCircle
+      : tone === "success"
+        ? CheckCircle
+        : tone === "warning"
+          ? WarningCircle
+          : Info;
   return (
     <div
       className={clsx(
         "flex items-start gap-2.5 rounded-lg border px-4 py-3 text-sm animate-fade-up",
-        tone === "error" && "border-[var(--critical)]/20 bg-[var(--critical-soft)]/50 text-[var(--critical)]",
+        tone === "error" &&
+          "border-[var(--critical)]/20 bg-[var(--critical-soft)]/50 text-[var(--critical)]",
         tone === "success" && "border-[var(--safe)]/20 bg-[var(--safe-soft)]/50 text-[var(--safe)]",
-        tone === "warning" && "border-[var(--attention)]/20 bg-[var(--attention-soft)]/50 text-[var(--attention)]",
+        tone === "warning" &&
+          "border-[var(--attention)]/20 bg-[var(--attention-soft)]/50 text-[var(--attention)]",
         tone === "info" && "border-slate-200 bg-slate-50 text-slate-600"
       )}
     >
@@ -273,7 +330,9 @@ export function EmptyState({
         <Icon size={28} weight="duotone" />
       </div>
       <h3 className="mt-5 text-lg font-bold text-slate-800">{title}</h3>
-      {description ? <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-500">{description}</p> : null}
+      {description ? (
+        <p className="mt-2 max-w-sm text-sm leading-relaxed text-slate-500">{description}</p>
+      ) : null}
       {action ? <div className="mt-6">{action}</div> : null}
     </div>
   );

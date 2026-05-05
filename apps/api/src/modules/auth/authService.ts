@@ -108,7 +108,10 @@ export const findAdminBySessionToken = async (
   };
 };
 
-export const revokeSessionToken = async (context: AppContext, token: string | undefined): Promise<void> => {
+export const revokeSessionToken = async (
+  context: AppContext,
+  token: string | undefined
+): Promise<void> => {
   if (!token) {
     return;
   }

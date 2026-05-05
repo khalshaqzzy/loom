@@ -40,12 +40,28 @@ export function AdminMessagesClient() {
   return (
     <div className="grid gap-5">
       <Panel className="animate-fade-up grid gap-4 p-5 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
-        <Field label="Node ID" value={nodeId} onChange={(event) => setNodeId(event.target.value)} placeholder="e.g. 123456" />
-        <Field label="Owner name" value={ownerName} onChange={(event) => setOwnerName(event.target.value)} placeholder="e.g. Budi Santoso" />
-        <SelectField label="Message value" value={message} onChange={(event) => setMessage(event.target.value as MessageValue | "")}>
+        <Field
+          label="Node ID"
+          value={nodeId}
+          onChange={(event) => setNodeId(event.target.value)}
+          placeholder="e.g. 123456"
+        />
+        <Field
+          label="Owner name"
+          value={ownerName}
+          onChange={(event) => setOwnerName(event.target.value)}
+          placeholder="e.g. Budi Santoso"
+        />
+        <SelectField
+          label="Message value"
+          value={message}
+          onChange={(event) => setMessage(event.target.value as MessageValue | "")}
+        >
           <option value="">All messages</option>
           {messageValueOptions.map((option) => (
-            <option value={option.value} key={option.value}>{option.label}</option>
+            <option value={option.value} key={option.value}>
+              {option.label}
+            </option>
           ))}
         </SelectField>
         <Button onClick={load} loading={loading}>

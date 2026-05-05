@@ -36,7 +36,15 @@ export const createNodeMessagesRouter = (context: AppContext): Router => {
 
   router.get(
     "/",
-    validateQuery(messageHistoryQuerySchema.pick({ limit: true, cursor: true, message: true, from: true, to: true })),
+    validateQuery(
+      messageHistoryQuerySchema.pick({
+        limit: true,
+        cursor: true,
+        message: true,
+        from: true,
+        to: true
+      })
+    ),
     asyncHandler(async (request, response) => {
       const parsedNodeId = nodeIdNumericSchema.safeParse(Number(request.params.nodeId));
       if (!parsedNodeId.success) {

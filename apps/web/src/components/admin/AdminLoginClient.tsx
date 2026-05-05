@@ -22,7 +22,9 @@ export function AdminLoginClient() {
       await api.login({ username, password });
       router.replace("/admin");
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Invalid username or password.");
+      setError(
+        requestError instanceof Error ? requestError.message : "Invalid username or password."
+      );
     } finally {
       setLoading(false);
     }

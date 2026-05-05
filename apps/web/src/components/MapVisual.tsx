@@ -49,7 +49,11 @@ export function MapVisual({
   }, [isLoaded, markerOnly, points]);
 
   if (!key || loadError || !isLoaded) {
-    return <FallbackMap markers={markers} points={points}>{children}</FallbackMap>;
+    return (
+      <FallbackMap markers={markers} points={points}>
+        {children}
+      </FallbackMap>
+    );
   }
 
   return (
@@ -108,7 +112,8 @@ export function FallbackMap({
   points?: HeatmapPoint[] | undefined;
   children?: ReactNode;
 }) {
-  const markerList = markers?.filter((marker) => marker.lat !== null && marker.lon !== null).slice(0, 14) ?? [];
+  const markerList =
+    markers?.filter((marker) => marker.lat !== null && marker.lon !== null).slice(0, 14) ?? [];
   const heatPoints = points?.slice(0, 5) ?? [];
   return (
     <div className="map-grid relative h-full min-h-[520px] overflow-hidden rounded-xl border border-border bg-[#eef6f8] shadow-panel">
@@ -136,8 +141,20 @@ export function FallbackMap({
           const mesh = marker.status === "active";
           return (
             <g key={marker.nodeId}>
-              <circle cx={x} cy={y} r="22" fill={mesh ? "rgba(18,167,162,0.18)" : "rgba(15,95,215,0.16)"} />
-              <circle cx={x} cy={y} r="10" fill={mesh ? "#12a7a2" : "#0f5fd7"} stroke="white" strokeWidth="4" />
+              <circle
+                cx={x}
+                cy={y}
+                r="22"
+                fill={mesh ? "rgba(18,167,162,0.18)" : "rgba(15,95,215,0.16)"}
+              />
+              <circle
+                cx={x}
+                cy={y}
+                r="10"
+                fill={mesh ? "#12a7a2" : "#0f5fd7"}
+                stroke="white"
+                strokeWidth="4"
+              />
             </g>
           );
         })}
@@ -147,7 +164,12 @@ export function FallbackMap({
               const y = 120 + ((index * 97) % 330);
               return (
                 <g key={index}>
-                  <circle cx={x} cy={y} r="22" fill={index % 3 === 0 ? "rgba(18,167,162,0.18)" : "rgba(15,95,215,0.16)"} />
+                  <circle
+                    cx={x}
+                    cy={y}
+                    r="22"
+                    fill={index % 3 === 0 ? "rgba(18,167,162,0.18)" : "rgba(15,95,215,0.16)"}
+                  />
                   <circle
                     cx={x}
                     cy={y}

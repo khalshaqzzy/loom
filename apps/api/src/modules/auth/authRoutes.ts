@@ -4,11 +4,7 @@ import { asyncHandler } from "../../http/asyncHandler";
 import { validateBody } from "../../http/validation";
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
-import {
-  authenticateAdmin,
-  findAdminBySessionToken,
-  revokeSessionToken
-} from "./authService";
+import { authenticateAdmin, findAdminBySessionToken, revokeSessionToken } from "./authService";
 import { ADMIN_SESSION_COOKIE } from "./authMiddleware";
 import { HttpError } from "../../http/errors";
 

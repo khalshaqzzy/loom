@@ -79,16 +79,35 @@ export function AdminNodesClient() {
                       className="stagger-item border-b border-slate-50 transition-colors hover:bg-slate-50/50"
                       style={{ "--stagger-index": index } as React.CSSProperties}
                     >
-                      <td className="px-5 py-3.5 font-mono text-xs font-bold text-slate-800">{node.nodeId}</td>
-                      <td className="px-5 py-3.5 font-semibold text-slate-700">{node.ownerFullName}</td>
+                      <td className="px-5 py-3.5 font-mono text-xs font-bold text-slate-800">
+                        {node.nodeId}
+                      </td>
+                      <td className="px-5 py-3.5 font-semibold text-slate-700">
+                        {node.ownerFullName}
+                      </td>
                       <td className="px-5 py-3.5">
-                        <Badge tone={node.status === "active" ? "mesh" : node.status === "inactive" ? "attention" : "unknown"} dot>
+                        <Badge
+                          tone={
+                            node.status === "active"
+                              ? "mesh"
+                              : node.status === "inactive"
+                                ? "attention"
+                                : "unknown"
+                          }
+                          dot
+                        >
                           {node.status}
                         </Badge>
                       </td>
-                      <td className="px-5 py-3.5 text-xs text-slate-500">{formatJakartaTime(node.lastSeenAt)}</td>
-                      <td className="px-5 py-3.5 text-xs text-slate-500">{formatJakartaTime(node.lastMessageAt)}</td>
-                      <td className="px-5 py-3.5 font-mono text-xs text-slate-500">{node.lastRangeToGateway ?? "n/a"}</td>
+                      <td className="px-5 py-3.5 text-xs text-slate-500">
+                        {formatJakartaTime(node.lastSeenAt)}
+                      </td>
+                      <td className="px-5 py-3.5 text-xs text-slate-500">
+                        {formatJakartaTime(node.lastMessageAt)}
+                      </td>
+                      <td className="px-5 py-3.5 font-mono text-xs text-slate-500">
+                        {node.lastRangeToGateway ?? "n/a"}
+                      </td>
                       <td className="px-5 py-3.5">
                         <Link
                           className="text-xs font-bold text-command transition-colors hover:text-blue-700"
@@ -106,7 +125,11 @@ export function AdminNodesClient() {
             <EmptyState
               icon={TreeStructure}
               title="No registered nodes"
-              description={search ? "No nodes match this search. Try a different term." : "Register your first node to start monitoring the mesh network."}
+              description={
+                search
+                  ? "No nodes match this search. Try a different term."
+                  : "Register your first node to start monitoring the mesh network."
+              }
               action={
                 !search ? (
                   <Button onClick={() => setOpen(true)}>
@@ -119,7 +142,9 @@ export function AdminNodesClient() {
           )}
         </Panel>
       )}
-      {open ? <RegisterNodeDialog onClose={() => setOpen(false)} onSaved={() => void load()} /> : null}
+      {open ? (
+        <RegisterNodeDialog onClose={() => setOpen(false)} onSaved={() => void load()} />
+      ) : null}
     </div>
   );
 }
@@ -153,12 +178,17 @@ function RegisterNodeDialog({ onClose, onSaved }: { onClose: () => void; onSaved
 
   return (
     <div className="fixed inset-0 z-50 grid place-items-center px-5">
-      <div className="absolute inset-0 bg-slate-950/30 backdrop-blur-sm animate-fade-in" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-slate-950/30 backdrop-blur-sm animate-fade-in"
+        onClick={onClose}
+      />
       <Panel className="relative w-full max-w-lg animate-slide-up p-7">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-black tracking-tight text-slate-950">Register a node</h2>
-            <p className="mt-1.5 text-sm text-slate-500">Birth date is collected for validation and never displayed.</p>
+            <p className="mt-1.5 text-sm text-slate-500">
+              Birth date is collected for validation and never displayed.
+            </p>
           </div>
           <button
             className="grid size-8 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"

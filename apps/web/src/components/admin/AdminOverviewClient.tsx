@@ -1,6 +1,13 @@
 "use client";
 
-import { Broadcast, CloudArrowUp, MapTrifold, TreeStructure, ArrowRight, Clock } from "@phosphor-icons/react";
+import {
+  Broadcast,
+  CloudArrowUp,
+  MapTrifold,
+  TreeStructure,
+  ArrowRight,
+  Clock
+} from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 import type { MeshMessageResponse, RegisteredNodeResponse } from "@loom/contracts";
 import { api } from "@/lib/api";
@@ -131,10 +138,21 @@ export function AdminOverviewClient() {
                   style={{ "--stagger-index": index } as React.CSSProperties}
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-mono text-sm font-bold text-slate-800">{node.nodeId}</p>
+                    <p className="truncate font-mono text-sm font-bold text-slate-800">
+                      {node.nodeId}
+                    </p>
                     <p className="mt-0.5 truncate text-xs text-slate-500">{node.ownerFullName}</p>
                   </div>
-                  <Badge tone={node.status === "active" ? "mesh" : node.status === "inactive" ? "attention" : "unknown"} dot>
+                  <Badge
+                    tone={
+                      node.status === "active"
+                        ? "mesh"
+                        : node.status === "inactive"
+                          ? "attention"
+                          : "unknown"
+                    }
+                    dot
+                  >
                     {node.status}
                   </Badge>
                 </div>
@@ -183,9 +201,13 @@ export function AdminOverviewClient() {
                           {messageLabel(message.message)}
                         </Badge>
                       </td>
-                      <td className="py-2.5 font-mono text-xs font-semibold text-slate-700">{message.senderNodeId}</td>
+                      <td className="py-2.5 font-mono text-xs font-semibold text-slate-700">
+                        {message.senderNodeId}
+                      </td>
                       <td className="py-2.5 font-mono text-xs text-slate-500">{message.seqId}</td>
-                      <td className="py-2.5 text-xs text-slate-500">{formatJakartaTime(message.timestamp)}</td>
+                      <td className="py-2.5 text-xs text-slate-500">
+                        {formatJakartaTime(message.timestamp)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -243,8 +265,18 @@ function MetricCard({
     requestAnimationFrame(animate);
   }, [value, isText]);
 
-  const accentBg = accent === "mesh" ? "bg-[var(--mesh-soft)]" : accent === "attention" ? "bg-[var(--attention-soft)]" : "bg-[var(--command-soft)]";
-  const accentText = accent === "mesh" ? "text-[var(--mesh)]" : accent === "attention" ? "text-[var(--attention)]" : "text-command";
+  const accentBg =
+    accent === "mesh"
+      ? "bg-[var(--mesh-soft)]"
+      : accent === "attention"
+        ? "bg-[var(--attention-soft)]"
+        : "bg-[var(--command-soft)]";
+  const accentText =
+    accent === "mesh"
+      ? "text-[var(--mesh)]"
+      : accent === "attention"
+        ? "text-[var(--attention)]"
+        : "text-command";
 
   return (
     <Panel
@@ -256,7 +288,10 @@ function MetricCard({
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-        <p ref={countRef} className="mt-0.5 font-mono text-2xl font-black tracking-tight text-slate-900">
+        <p
+          ref={countRef}
+          className="mt-0.5 font-mono text-2xl font-black tracking-tight text-slate-900"
+        >
           {isText ? displayValue : displayValue}
         </p>
       </div>

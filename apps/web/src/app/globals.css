@@ -212,7 +212,9 @@ nextjs-portal {
 }
 
 .tactile-press {
-  transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 160ms ease;
+  transition:
+    transform 160ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 160ms ease;
 }
 
 .tactile-press:active:not(:disabled) {
@@ -238,7 +240,9 @@ nextjs-portal {
 }
 
 .hover-lift {
-  transition: transform 200ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 200ms ease;
+  transition:
+    transform 200ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 200ms ease;
 }
 
 .hover-lift:hover {
@@ -314,7 +318,11 @@ nextjs-portal {
   z-index: -1;
   opacity: 0.75;
   background-image:
-    repeating-radial-gradient(ellipse at 18% 56%, rgb(20 92 205 / 0.09) 0 1px, transparent 1px 22px),
+    repeating-radial-gradient(
+      ellipse at 18% 56%,
+      rgb(20 92 205 / 0.09) 0 1px,
+      transparent 1px 22px
+    ),
     linear-gradient(180deg, rgb(255 255 255 / 0.45), rgb(255 255 255 / 0));
 }
 
@@ -388,7 +396,9 @@ nextjs-portal {
   font-weight: 850;
   line-height: 1;
   white-space: nowrap;
-  transition: transform 160ms ease, box-shadow 160ms ease;
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
 }
 
 .landing-button:hover {
@@ -1762,7 +1772,13 @@ nextjs-portal {
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgb(2 9 20 / 0.98) 0%, rgb(2 9 20 / 0.86) 36%, rgb(2 9 20 / 0.32) 68%, rgb(2 9 20 / 0.65) 100%),
+    linear-gradient(
+      90deg,
+      rgb(2 9 20 / 0.98) 0%,
+      rgb(2 9 20 / 0.86) 36%,
+      rgb(2 9 20 / 0.32) 68%,
+      rgb(2 9 20 / 0.65) 100%
+    ),
     radial-gradient(circle at 76% 58%, rgb(0 108 255 / 0.18), transparent 28rem);
 }
 
