@@ -33,8 +33,8 @@ for path in \
   "${BASE_DIR}/shared/caddy-config" \
   "${BASE_DIR}/shared/mongo-data"; do
   mkdir -p "${path}"
-  if [[ ! -w "${path}" ]]; then
-    echo "Shared directory is not writable by deploy user: ${path}" >&2
+  if [[ ! -d "${path}" ]]; then
+    echo "Shared bind-mount directory missing: ${path}" >&2
     exit 1
   fi
 done
