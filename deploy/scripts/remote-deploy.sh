@@ -14,7 +14,6 @@ LOCK_FILE="${BASE_DIR}/deploy.lock"
 compose() {
   docker compose \
     --project-name "loom-${APP_ENV}" \
-    --project-directory "${RELEASE_DIR}" \
     --env-file "${RUNTIME_ENV_FILE}" \
     -f "${COMPOSE_FILE}" \
     "$@"
