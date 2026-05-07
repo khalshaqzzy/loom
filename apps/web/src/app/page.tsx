@@ -19,6 +19,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { LandingMotion } from "@/components/LandingMotion";
 
 const asset = (path: string) => `/assets/${path}`;
 
@@ -154,16 +155,18 @@ const footerColumns = [
 
 export default function LandingPage() {
   return (
-    <main className="landing-page w-full max-w-full overflow-x-hidden bg-[#f8fbff] text-[#071f52]">
-      <HeroSection />
-      <ProductPreviewSection />
-      <MeshSection />
-      <SurfaceSplitSection />
-      <LifecycleSection />
-      <PrivacySection />
-      <FinalCtaSection />
-      <FooterSection />
-    </main>
+    <LandingMotion>
+      <main className="landing-page w-full max-w-full overflow-x-hidden bg-[#f8fbff] text-[#071f52]">
+        <HeroSection />
+        <ProductPreviewSection />
+        <MeshSection />
+        <SurfaceSplitSection />
+        <LifecycleSection />
+        <PrivacySection />
+        <FinalCtaSection />
+        <FooterSection />
+      </main>
+    </LandingMotion>
   );
 }
 
@@ -693,7 +696,7 @@ function FooterSection() {
         <span>Privacy-first&nbsp;&nbsp;-&nbsp;&nbsp;People-first</span>
       </div>
       <div className="footer-bottom">
-        <span>(c) 2025 LOOM Networks, Inc. All rights reserved.</span>
+        <span>(c) 2026 LOOM Networks, Inc. All rights reserved.</span>
         <a href="#">Privacy Policy</a>
         <a href="#">Terms of Service</a>
         <a href="#">Acceptable Use</a>
