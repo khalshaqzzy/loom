@@ -276,14 +276,25 @@ nextjs-portal {
   }
 }
 
+.landing-page {
+  height: 100dvh;
+  overflow-y: auto;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+  overscroll-behavior-y: contain;
+}
+
 .landing-stage {
   position: relative;
   isolation: isolate;
-  width: 100%;
-  max-width: 1672px;
-  aspect-ratio: 1672 / 941;
-  margin: 0 auto;
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  min-height: 0;
+  margin: 0;
   overflow: hidden;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
   background:
     radial-gradient(circle at 85% 8%, rgb(219 232 250 / 0.5), transparent 26rem),
     linear-gradient(180deg, #fbfdff 0%, #f7fbff 100%);
@@ -303,7 +314,7 @@ nextjs-portal {
 .landing-hero-bg {
   z-index: -2;
   object-fit: cover;
-  object-position: center bottom;
+  object-position: center center;
 }
 
 .landing-hero::before,
@@ -680,7 +691,7 @@ nextjs-portal {
 .preview-stream-card p {
   position: absolute;
   left: 4.7rem;
-  top: 3.35rem;
+  top: 3rem;
 }
 
 .preview-map-img {
@@ -726,7 +737,7 @@ nextjs-portal {
 .preview-stream-card {
   right: 1.6%;
   top: 56.2%;
-  width: 34.5%;
+  width: 33.5%;
   height: 39.8%;
   padding: 1.1rem 1.25rem;
 }
@@ -734,9 +745,11 @@ nextjs-portal {
 .privacy-phone-img {
   position: absolute;
   left: 0.2rem;
-  bottom: -2.8rem;
-  width: 43%;
+  bottom: 0;
+  width: 48%;
   height: auto;
+  clip-path: inset(0 0 40% 0);
+  transform: translateY(40%);
 }
 
 .privacy-note {
@@ -1157,8 +1170,11 @@ nextjs-portal {
   position: relative;
   z-index: 4;
   display: grid;
+  align-self: start;
+  justify-self: center;
   width: 2.25rem;
   height: 2.25rem;
+  margin-top: 1.45rem;
   place-items: center;
   border-radius: 999px;
   background: #075ad8;
@@ -1169,8 +1185,10 @@ nextjs-portal {
 
 .mesh-step-icon {
   display: grid;
+  align-self: start;
   width: 4rem;
   height: 4rem;
+  margin-top: 1.45rem;
   place-items: center;
   border-radius: 999px;
   background: #fff;
@@ -1181,6 +1199,8 @@ nextjs-portal {
 .mesh-step-copy {
   position: relative;
   z-index: 2;
+  align-self: start;
+  padding-top: 1.25rem;
   padding-right: 1rem;
 }
 
@@ -1202,7 +1222,7 @@ nextjs-portal {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center;
+  object-position: center 58%;
 }
 
 .section-surface > .section-kicker {
@@ -1488,17 +1508,6 @@ nextjs-portal {
   line-height: 1.52;
 }
 
-.section-lifecycle::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  top: 7%;
-  width: 34%;
-  height: 22%;
-  background: url("/assets/landing/section3/mesh-story-overview.png") center / cover no-repeat;
-  opacity: 0.12;
-}
-
 .lifecycle-grid {
   position: absolute;
   left: 3.35%;
@@ -1667,6 +1676,18 @@ nextjs-portal {
   width: 100%;
   height: 84%;
   object-fit: cover;
+}
+
+.privacy-visual-tile-crop-13 img {
+  clip-path: inset(13% 0 0 0);
+}
+
+.privacy-visual-tile-crop-15 img {
+  clip-path: inset(15% 0 0 0);
+}
+
+.privacy-visual-tile-show-left img {
+  object-position: 18% center;
 }
 
 .privacy-grid {
@@ -1965,8 +1986,9 @@ nextjs-portal {
   font-weight: 900;
 }
 
-@media (max-width: 1100px) {
+@supports not (height: 100dvh) {
+  .landing-page,
   .landing-stage {
-    min-width: 1100px;
+    height: 100vh;
   }
 }

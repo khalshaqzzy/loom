@@ -154,7 +154,7 @@ const footerColumns = [
 
 export default function LandingPage() {
   return (
-    <main className="w-full max-w-full overflow-x-hidden bg-[#f8fbff] text-[#071f52]">
+    <main className="landing-page w-full max-w-full overflow-x-hidden bg-[#f8fbff] text-[#071f52]">
       <HeroSection />
       <ProductPreviewSection />
       <MeshSection />
@@ -436,13 +436,6 @@ function SurfaceSplitSection() {
           <LandingButton href="/public" icon={<MapTrifold size={22} weight="bold" />}>
             Explore public map
           </LandingButton>
-          <LandingButton
-            href="/public/history"
-            variant="light"
-            icon={<ClockCounterClockwise size={22} weight="bold" />}
-          >
-            Lookup history
-          </LandingButton>
         </div>
         <Image
           src={asset("landing/section2/preview-map-bento.png")}
@@ -556,8 +549,13 @@ function PrivacySection() {
       </p>
       <div className="privacy-visuals">
         <VisualTile title="Public heatmap (no login)" image="privacy-public-heatmap.png" />
-        <VisualTile title="Privacy lookup (public)" image="privacy-lookup-form.png" />
-        <VisualTile title="Protected identity (admin only)" image="privacy-admin-identity.png" />
+        <VisualTile title="Privacy lookup (public)" image="privacy-lookup-form.png" cropTop="13" />
+        <VisualTile
+          title="Protected identity (admin only)"
+          image="privacy-admin-identity.png"
+          cropTop="15"
+          showLeft
+        />
       </div>
       <div className="privacy-grid">
         {privacyItems.map((item) => {
@@ -934,9 +932,23 @@ function AdminRow({
   );
 }
 
-function VisualTile({ title, image }: { title: string; image: string }) {
+function VisualTile({
+  title,
+  image,
+  cropTop,
+  showLeft = false
+}: {
+  title: string;
+  image: string;
+  cropTop?: "13" | "15";
+  showLeft?: boolean;
+}) {
   return (
-    <div className="privacy-visual-tile">
+    <div
+      className={`privacy-visual-tile ${cropTop ? `privacy-visual-tile-crop-${cropTop}` : ""} ${
+        showLeft ? "privacy-visual-tile-show-left" : ""
+      }`}
+    >
       <strong>{title}</strong>
       <Image src={asset(`landing/section6/${image}`)} alt="" width={1448} height={864} />
     </div>
