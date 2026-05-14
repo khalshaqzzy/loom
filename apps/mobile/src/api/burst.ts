@@ -12,35 +12,35 @@ export interface BurstMessage {
   receivedByNodeId?: number;
 }
 
+const API_BASE = 'https://api.loomnetwork.site';
+
 export async function burstBacklogToBackend(
-  backlogItems: BurstMessage[], 
-  uploaderNodeId: number, 
+  backlogItems: BurstMessage[],
+  uploaderNodeId: number,
   installationId: string
-) {
+): Promise<{ success: boolean; data?: any; reason?: string }> {
   const networkState = await Network.getNetworkStateAsync();
   if (!networkState.isConnected || !networkState.isInternetReachable) {
     return { success: false, reason: 'offline' };
   }
 
   try {
-    const response = await fetch('https://api.loomnetwork.site/api/ingest/burst', {
+    const response = await fetch(`${API_BASE}/api/ingest/burst`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         uploaderType: 'mobile_app',
-        uploaderNodeId: uploaderNodeId,
+        uploaderNodeId,
         mobileInstallationId: installationId,
         clientCreatedAt: new Date().toISOString(),
-        messages: backlogItems
-      })
+        messages: backlogItems,
+      }),
     });
 
     const result = await response.json();
-    // Kembalikan result untuk meng-update status lokal (accepted, duplicates, rejected)
-    // Item yang accepted/duplicate bisa dihapus dari local backlog.
     return { success: true, data: result };
   } catch (error) {
-    console.error("Burst upload failed:", error);
+    console.error('[API] Burst upload failed:', error);
     return { success: false, reason: 'api_error' };
   }
 }

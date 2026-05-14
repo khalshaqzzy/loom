@@ -1,16 +1,50 @@
-import { useState } from 'react';
+/**
+ * useBleScanner.ts
+ * Hook untuk scanning BLE node LOOM.
+ *
+ * Kalau BLE tidak tersedia (mock mode / iOS Simulator),
+ * hook ini akan menampilkan dummy nodes agar UI tetap testable.
+ */
+
+import { useState, useCallback } from 'react';
 import { PermissionsAndroid, Platform, Alert } from 'react-native';
-import { Device } from 'react-native-ble-plx';
-import { bleManager } from './BleManager';
+import { getLoomBleManager } from './BleManager';
+
+export type LoomNode = {
+  id: string;
+  name: string;
+  rssi: number | null;
+  distance: 'dekat' | 'sedang' | 'jauh';
+  rawDevice?: any;
+};
+
+// Mock nodes untuk tampil di iOS Simulator / testing
+const MOCK_NODES: LoomNode[] = [
+  { id: 'mock-A12', name: 'LOOM-Node-A12', rssi: -55, distance: 'dekat' },
+  { id: 'mock-B07', name: 'LOOM-Node-B07', rssi: -72, distance: 'sedang' },
+  { id: 'mock-C03', name: 'LOOM-Node-C03', rssi: -88, distance: 'jauh' },
+];
+
+function rssiToDistance(rssi: number | null): 'dekat' | 'sedang' | 'jauh' {
+  if (rssi === null) return 'jauh';
+  if (rssi >= -65) return 'dekat';
+  if (rssi >= -80) return 'sedang';
+  return 'jauh';
+}
+
+function rssiToMeters(rssi: number | null): string {
+  if (rssi === null) return '> 50 m';
+  const meters = Math.round(Math.pow(10, (-59 - rssi) / 20));
+  return `± ${meters} m`;
+}
 
 export function useBleScanner() {
-  const [devices, setDevices] = useState<Device[]>([]);
+  const [nodes, setNodes] = useState<LoomNode[]>([]);
   const [isScanning, setIsScanning] = useState(false);
+  const [scanComplete, setScanComplete] = useState(false);
 
-  // Fungsi untuk memunculkan pop-up izin Bluetooth & Lokasi
-  const requestPermissions = async () => {
+  const requestPermissions = async (): Promise<boolean> => {
     if (Platform.OS === 'android') {
-      // Untuk Android 12 ke atas
       if ((Platform.Version as number) >= 31) {
         const result = await PermissionsAndroid.requestMultiple([
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
@@ -22,54 +56,82 @@ export function useBleScanner() {
           result['android.permission.BLUETOOTH_CONNECT'] === 'granted'
         );
       } else {
-        // Untuk Android 11 ke bawah (butuh lokasi untuk scan BLE)
         const result = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
         );
         return result === 'granted';
       }
     }
-    return true; // iOS biasanya menangani ini secara otomatis saat BLE dipanggil
+    // iOS: permission dihandle otomatis saat BLE dipanggil
+    return true;
   };
 
-  const startScan = async () => {
-    // 1. Minta izin dulu sebelum mulai mencari
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) {
-      Alert.alert('Izin Ditolak', 'Aplikasi membutuhkan akses Bluetooth untuk mencari Node LOOM.');
+  const startScan = useCallback(async () => {
+    const { isMockMode, manager } = getLoomBleManager();
+
+    setScanComplete(false);
+    setIsScanning(true);
+    setNodes([]);
+
+    if (isMockMode) {
+      // Mock mode: simulasikan scanning dengan delay
+      console.log('[BLE MOCK] Simulating node scan...');
+      setTimeout(() => {
+        setNodes(MOCK_NODES);
+        setIsScanning(false);
+        setScanComplete(true);
+        console.log('[BLE MOCK] Found', MOCK_NODES.length, 'mock nodes');
+      }, 2000);
       return;
     }
 
-    // 2. Jika diizinkan, mulai mencari
-    setIsScanning(true);
-    setDevices([]);
-    
-    // Scan perangkat tanpa filter service UUID dulu agar semua terlihat
-    bleManager.startDeviceScan(null, null, (error, device) => {
+    // Native BLE mode
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) {
+      Alert.alert('Izin Ditolak', 'Aplikasi membutuhkan akses Bluetooth untuk mencari Node LOOM.');
+      setIsScanning(false);
+      return;
+    }
+
+    manager!.startDeviceScan(null, null, (error: any, device: any) => {
       if (error) {
-        console.error("Scan error:", error.message);
+        console.error('[BLE] Scan error:', error.message);
         setIsScanning(false);
         return;
       }
-      
-      // Filter: Hanya tampilkan perangkat yang punya nama
-      if (device && device.name) {
-        setDevices(prev => {
-          // Cegah duplikasi perangkat di list
-          if (!prev.find(d => d.id === device.id)) {
-            return [...prev, device]; 
-          }
-          return prev;
+
+      // Hanya tampilkan device bernama LOOM
+      if (device && device.name && device.name.startsWith('LOOM')) {
+        setNodes(prev => {
+          if (prev.find(d => d.id === device.id)) return prev;
+          const node: LoomNode = {
+            id: device.id,
+            name: device.name || 'Unknown LOOM Node',
+            rssi: device.rssi,
+            distance: rssiToDistance(device.rssi),
+            rawDevice: device,
+          };
+          return [...prev, node].sort((a, b) => (b.rssi || -999) - (a.rssi || -999));
         });
       }
     });
 
-    // Hentikan scan otomatis setelah 10 detik agar hemat baterai
+    // Stop scan setelah 10 detik
     setTimeout(() => {
-      bleManager.stopDeviceScan();
+      manager!.stopDeviceScan();
       setIsScanning(false);
+      setScanComplete(true);
     }, 10000);
-  };
+  }, []);
 
-  return { devices, isScanning, startScan };
+  const stopScan = useCallback(() => {
+    const { isMockMode, manager } = getLoomBleManager();
+    if (!isMockMode && manager) {
+      manager.stopDeviceScan();
+    }
+    setIsScanning(false);
+    setScanComplete(true);
+  }, []);
+
+  return { nodes, isScanning, scanComplete, startScan, stopScan, rssiToMeters };
 }
