@@ -195,7 +195,7 @@ export default function PengaturanScreen() {
 
         {/* Hapus Laporan */}
         <TouchableOpacity style={styles.dangerBtn} onPress={handleDeleteLogs}>
-          <Text style={styles.dangerBtnText}>🗑 Hapus Laporan Lokal</Text>
+          <Text style={styles.dangerBtnText}>Hapus Laporan Lokal</Text>
         </TouchableOpacity>
 
         <View style={{ height: 30 }} />

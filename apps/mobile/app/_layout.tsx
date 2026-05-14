@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Tabs } from 'expo-router';
-import { Platform, View, Text, StyleSheet } from 'react-native';
+import { Platform, View, Text, StyleSheet, Image } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Network from 'expo-network';
@@ -99,7 +99,9 @@ export default function RootLayout() {
           options={{
             title: 'Laporan',
             tabBarIcon: ({ focused, color }) => (
-              <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>🏠</Text>
+              <Image source={require('../assets/home.png')} 
+              style={styles.baricon} 
+              />
             ),
           }}
         />
@@ -108,7 +110,9 @@ export default function RootLayout() {
           options={{
             title: 'Riwayat',
             tabBarIcon: ({ focused }) => (
-              <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>🕐</Text>
+              <Image source={require('../assets/history.png')} 
+              style={styles.baricon} 
+              />
             ),
           }}
         />
@@ -117,7 +121,9 @@ export default function RootLayout() {
           options={{
             title: 'Bantuan',
             tabBarIcon: ({ focused }) => (
-              <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>❓</Text>
+              <Image source={require('../assets/information.png')} 
+              style={styles.baricon} 
+              />
             ),
           }}
         />
@@ -126,7 +132,9 @@ export default function RootLayout() {
           options={{
             title: 'Pengaturan',
             tabBarIcon: ({ focused }) => (
-              <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>⚙️</Text>
+             <Image source={require('../assets/setting.png')} 
+              style={styles.baricon} 
+              />
             ),
           }}
         />
@@ -134,3 +142,11 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  baricon: {
+    width: 24, 
+    height: 24,
+    resizeMode: 'contain', 
+  },
+});

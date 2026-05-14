@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, TextInput,
   ScrollView, Modal, FlatList, ActivityIndicator,
-  Animated, Platform, KeyboardAvoidingView, Alert,
+  Animated, Platform, KeyboardAvoidingView, Alert, Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
@@ -281,7 +281,9 @@ export default function LaporanScreen() {
           <Text style={styles.sectionLabel}>LOKASI &amp; WAKTU</Text>
           <View style={styles.locationCard}>
             <View style={styles.locationRow}>
-              <Text style={styles.locationIcon}>📍</Text>
+              <Image source={require('../assets/location.png')}
+              style={styles.locationIcon} 
+              />
               <View style={{ flex: 1 }}>
                 <Text style={styles.locationLabel}>LOKASI TERSEDIA</Text>
                 <Text style={styles.locationValue}>
@@ -294,13 +296,15 @@ export default function LaporanScreen() {
             </View>
             <View style={styles.locationDivider} />
             <View style={styles.locationRow}>
-              <Text style={styles.locationIcon}>🕐</Text>
-              <View>
+              <Image source={require('../assets/time.png')}
+              style={styles.timeIcon} 
+              />
+              <View style={{ flex: 1 }}>
                 <Text style={styles.locationLabel}>WAKTU &amp; TANGGAL</Text>
                 <Text style={styles.locationValue}>{formatNow()}</Text>
               </View>
-              <TouchableOpacity>
-                <Text style={styles.refreshBtn}>Kini</Text>
+              <TouchableOpacity onPress={refreshLocation} disabled={locationLoading}>
+                <Text style={styles.refreshBtn}>{locationLoading ? '...' : 'Kini'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -315,7 +319,6 @@ export default function LaporanScreen() {
               <ActivityIndicator color="white" />
             ) : (
               <>
-                <Text style={styles.sendIcon}>📤</Text>
                 <Text style={styles.sendBtnText}>Kirim Laporan</Text>
               </>
             )}
@@ -515,7 +518,16 @@ const styles = StyleSheet.create({
   },
   locationRow: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 10 },
   locationDivider: { height: 1, backgroundColor: COLORS.border },
-  locationIcon: { fontSize: 18 },
+  locationIcon: {
+    width: 24, 
+    height: 24,
+    resizeMode: 'contain', 
+  },
+  timeIcon: {
+    width: 23, 
+    height: 23,
+    resizeMode: 'contain', 
+  },
   locationLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 0.8 },
   locationValue: { fontSize: 13, color: COLORS.textPrimary, fontWeight: '500', marginTop: 1 },
   refreshBtn: { fontSize: 13, color: COLORS.accent, fontWeight: '600' },
