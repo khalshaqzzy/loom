@@ -1,291 +1,366 @@
+#include <Arduino.h>
+#include <esp_system.h>
 #include <SPI.h>
 #include <LoRa.h>
-#include <NimBLEDevice.h>
+#include "backlog_store.h"
+#include "ble_bridge.h"
+#include "config.h"
+#include "dedup_cache.h"
+#include "pending_queue.h"
+#include "protocol.h"
+#include "routing.h"
 
-// ── Identity ─────────────────────────────────────────────
-#define NODE_ID         2         // ganti per device, daftarkan ke backend
-#define ROUTE_INFINITY  65535
+using namespace loom;
 
-// ── BLE UUIDs (sesuai BleManager.ts mobile app) ──────────
-#define LOOM_SERVICE_UUID              "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define LOOM_REPORT_CHAR_UUID          "beb5483e-36e1-4688-b7f5-ea07361b26a8"
-#define LOOM_INTERNET_STATUS_CHAR_UUID "cba1d466-344c-4be3-ab3f-189f80dd7518"
+namespace {
 
-// ── BLE Device Name (mobile scan cari prefix "LOOM") ─────
-#define BLE_DEVICE_NAME "LOOM-Node-2"  // ganti angka sesuai NODE_ID
+DedupCache dedupCache;
+PendingQueue pendingQueue;
+BacklogStore backlogStore;
+RoutingTable routing;
+BleBridge bleBridge;
 
-// ── Pin LoRa (sisi kiri ESP32 WROOM-32) ─────────────────
-#define LORA_SCK        33
-#define LORA_MISO       26
-#define LORA_MOSI       25
-#define LORA_CS         32
-#define LORA_RST        27
-#define LORA_DIO0       14
-#define LORA_FREQ       868E6
+uint32_t nextSeqId = 1;
+uint16_t heartbeatSeq = 0;
+uint32_t nextHeartbeatMs = 0;
+uint32_t lastStatusNotifyMs = 0;
 
-// ── LoRa Packet Types ─────────────────────────────────────
-#define PKT_HEARTBEAT   0x01
-#define PKT_DATA        0x02
-#define PKT_MAGIC       0x4C4D
+struct DelayedForward {
+  bool occupied = false;
+  DataPacket packet;
+  uint32_t sendAtMs = 0;
+};
 
-// ── Interval ─────────────────────────────────────────────
-#define HEARTBEAT_INTERVAL_MS 30000
-#define DATA_INTERVAL_MS      5000
-#define MESSAGE_VALUE         "fine"
+DelayedForward forwardQueue[DELAYED_FORWARD_QUEUE_SIZE];
 
-// ── State ─────────────────────────────────────────────────
-uint32_t seqId          = 0;
-uint16_t rangeToGateway = ROUTE_INFINITY;
-bool hasInternet        = false;
-unsigned long lastHeartbeat = 0;
-unsigned long lastData = 0;
+bool sendDataPacket(const DataPacket& packet);
 
-// ── Dedup cache ───────────────────────────────────────────
-#define DEDUP_CACHE_SIZE 16
-struct DedupEntry { uint32_t senderNodeId; uint32_t seqId; };
-DedupEntry dedupCache[DEDUP_CACHE_SIZE];
-uint8_t dedupIndex = 0;
+uint32_t nowSeconds() {
+  return (uint32_t)(millis() / 1000);
+}
 
-bool isDuplicate(uint32_t sender, uint32_t seq) {
-  for (int i = 0; i < DEDUP_CACHE_SIZE; i++) {
-    if (dedupCache[i].senderNodeId == sender && dedupCache[i].seqId == seq) return true;
+void scheduleNextHeartbeat(uint32_t nowMs) {
+  nextHeartbeatMs = nowMs + random(HEARTBEAT_MIN_MS, HEARTBEAT_MAX_MS + 1);
+  Serial.printf("[SCHED] Next heartbeat in %lu ms\n", nextHeartbeatMs - nowMs);
+}
+
+int findForwardSlot(uint32_t nowMs) {
+  int oldest = 0;
+  for (size_t i = 0; i < DELAYED_FORWARD_QUEUE_SIZE; i++) {
+    if (!forwardQueue[i].occupied) return (int)i;
+    if ((int32_t)(forwardQueue[i].sendAtMs - forwardQueue[oldest].sendAtMs) < 0) oldest = (int)i;
   }
-  return false;
-}
-void addToDedup(uint32_t sender, uint32_t seq) {
-  dedupCache[dedupIndex % DEDUP_CACHE_SIZE] = {sender, seq};
-  dedupIndex++;
+  return oldest;
 }
 
-// ── Sanitize message value ────────────────────────────────
-const char* sanitizeMessage(const char* raw) {
-  const char* valid[] = {
-    "fine", "needs_rescue", "medical_help", "food_water",
-    "shelter_needed", "trapped", "danger", "unknown",
-    "critical_medical", "critical_collapse", "critical_flood",
-    "critical_fire", "critical_emergency",
-    "need_water", "need_food", "need_evacuation", "need_assistance"
-  };
-  for (const char* v : valid) {
-    if (strcmp(raw, v) == 0) return raw;
+void scheduleForward(const DataPacket& packet, uint32_t nowMs) {
+  int slot = findForwardSlot(nowMs);
+  forwardQueue[slot].occupied = true;
+  forwardQueue[slot].packet = packet;
+  forwardQueue[slot].sendAtMs = nowMs + random(FORWARD_DELAY_MIN_MS, FORWARD_DELAY_MAX_MS + 1);
+  Serial.printf("[ROUTE] Scheduled forward sender=%lu seq=%lu at +%lu ms\n",
+                packet.senderNodeId,
+                packet.seqId,
+                forwardQueue[slot].sendAtMs - nowMs);
+}
+
+void processForwardQueue(uint32_t nowMs) {
+  for (size_t i = 0; i < DELAYED_FORWARD_QUEUE_SIZE; i++) {
+    if (!forwardQueue[i].occupied || (int32_t)(nowMs - forwardQueue[i].sendAtMs) < 0) continue;
+    DataPacket packet = forwardQueue[i].packet;
+    setForwarderRange(&packet, routing.rangeToGateway(nowMs));
+    if (sendDataPacket(packet)) {
+      Serial.printf("[LORA TX] FORWARD sender=%lu seq=%lu range=%u\n",
+                    packet.senderNodeId,
+                    packet.seqId,
+                    packet.forwarderRangeToGateway);
+    } else {
+      Serial.printf("[LORA TX] FORWARD failed sender=%lu seq=%lu\n", packet.senderNodeId, packet.seqId);
+    }
+    forwardQueue[i].occupied = false;
   }
-  return "unknown";
 }
 
-// ── Kirim data packet via LoRa ────────────────────────────
-void sendLoRaData(const char* message) {
-  uint32_t now = (uint32_t)(millis() / 1000);
+bool sendHeartbeatPacket() {
+  uint8_t bytes[LORA_HEARTBEAT_PACKET_SIZE];
+  size_t written = 0;
+  HeartbeatPacket packet;
+  packet.nodeId = NODE_ID;
+  packet.rangeToGateway = routing.rangeToGateway(millis());
+  packet.heartbeatSeq = ++heartbeatSeq;
 
+  if (!encodeHeartbeat(packet, bytes, sizeof(bytes), &written)) {
+    Serial.println("[LORA TX] HEARTBEAT encode failed");
+    return false;
+  }
   LoRa.beginPacket();
-  LoRa.write((PKT_MAGIC >> 8) & 0xFF);
-  LoRa.write(PKT_MAGIC & 0xFF);
-  LoRa.write(PKT_DATA);
-  LoRa.write(NODE_ID & 0xFF);
-  LoRa.write((NODE_ID >> 8) & 0xFF);
-  LoRa.write((NODE_ID >> 16) & 0xFF);
-  LoRa.write(seqId & 0xFF);
-  LoRa.write((seqId >> 8) & 0xFF);
-  LoRa.write((seqId >> 16) & 0xFF);
-  LoRa.write((seqId >> 24) & 0xFF);
-  LoRa.write(rangeToGateway & 0xFF);
-  LoRa.write((rangeToGateway >> 8) & 0xFF);
-  LoRa.write(rangeToGateway & 0xFF);
-  LoRa.write((rangeToGateway >> 8) & 0xFF);
-  LoRa.write(now & 0xFF);
-  LoRa.write((now >> 8) & 0xFF);
-  LoRa.write((now >> 16) & 0xFF);
-  LoRa.write((now >> 24) & 0xFF);
-  uint8_t msgLen = (uint8_t)strlen(message);
-  LoRa.write(msgLen);
-  LoRa.print(message);
+  LoRa.write(bytes, written);
   LoRa.endPacket();
-
-  addToDedup(NODE_ID, seqId);
-  Serial.printf("[LORA TX] DATA | seqId=%d range=%d msg=%s\n", seqId, rangeToGateway, message);
-  seqId++;
+  Serial.printf("[LORA TX] HEARTBEAT range=%u seq=%u\n", packet.rangeToGateway, packet.heartbeatSeq);
+  return true;
 }
 
-// ── Kirim heartbeat ───────────────────────────────────────
-void sendHeartbeat() {
+bool sendDataPacket(const DataPacket& packet) {
+  uint8_t bytes[MAX_LORA_PACKET_SIZE];
+  size_t written = 0;
+  if (!encodeData(packet, bytes, sizeof(bytes), &written)) {
+    Serial.println("[LORA TX] DATA encode failed");
+    return false;
+  }
   LoRa.beginPacket();
-  LoRa.write((PKT_MAGIC >> 8) & 0xFF);
-  LoRa.write(PKT_MAGIC & 0xFF);
-  LoRa.write(PKT_HEARTBEAT);
-  LoRa.write(NODE_ID & 0xFF);
-  LoRa.write((NODE_ID >> 8) & 0xFF);
-  LoRa.write((NODE_ID >> 16) & 0xFF);
-  LoRa.write(rangeToGateway & 0xFF);
-  LoRa.write((rangeToGateway >> 8) & 0xFF);
+  LoRa.write(bytes, written);
   LoRa.endPacket();
-  Serial.printf("[LORA TX] HEARTBEAT | range=%d\n", rangeToGateway);
+  return true;
 }
 
-// ── Terima & forward LoRa dari node lain ─────────────────
-void receiveAndForward() {
+void flushPending(uint32_t nowMs) {
+  if (routing.rangeToGateway(nowMs) == ROUTE_INFINITY) return;
+  DataPacket packet;
+  while (pendingQueue.popReady(&packet)) {
+    packet.senderRangeToGateway = routing.rangeToGateway(nowMs);
+    packet.forwarderRangeToGateway = packet.senderRangeToGateway;
+    if (sendDataPacket(packet)) {
+      Serial.printf("[PENDING] Flushed sender=%lu seq=%lu range=%u\n",
+                    packet.senderNodeId,
+                    packet.seqId,
+                    packet.senderRangeToGateway);
+    } else {
+      pendingQueue.push(packet, nowMs);
+      Serial.printf("[PENDING] Requeued sender=%lu seq=%lu after TX failure\n",
+                    packet.senderNodeId,
+                    packet.seqId);
+      return;
+    }
+  }
+}
+
+void handleHeartbeat(const uint8_t* bytes, size_t size, int rssi, uint32_t nowMs) {
+  HeartbeatPacket packet;
+  if (!decodeHeartbeat(bytes, size, &packet)) {
+    Serial.println("[LORA RX] Invalid heartbeat");
+    return;
+  }
+  routing.observeHeartbeat(packet, rssi, nowMs);
+  Serial.printf("[LORA RX] HEARTBEAT from=%lu range=%u seq=%u rssi=%d\n",
+                packet.nodeId,
+                packet.rangeToGateway,
+                packet.heartbeatSeq,
+                rssi);
+}
+
+void handleData(const uint8_t* bytes, size_t size, int rssi, uint32_t nowMs) {
+  DataPacket packet;
+  if (!decodeData(bytes, size, &packet)) {
+    Serial.println("[LORA RX] Invalid DATA");
+    return;
+  }
+  if (packet.senderNodeId == NODE_ID) {
+    Serial.printf("[LORA RX] Ignored own DATA seq=%lu\n", packet.seqId);
+    return;
+  }
+  if (dedupCache.has(packet.senderNodeId, packet.seqId, nowMs)) {
+    Serial.printf("[DEDUP] sender=%lu seq=%lu\n", packet.senderNodeId, packet.seqId);
+    return;
+  }
+
+  dedupCache.add(packet.senderNodeId, packet.seqId, nowMs);
+  bool stored = backlogStore.upsert(packet, NODE_ID, nowMs);
+  Serial.printf("[LORA RX] DATA sender=%lu seq=%lu sRange=%u fRange=%u msg=%s rssi=%d\n",
+                packet.senderNodeId,
+                packet.seqId,
+                packet.senderRangeToGateway,
+                packet.forwarderRangeToGateway,
+                packet.message,
+                rssi);
+  Serial.printf("[BACKLOG] Store received sender=%lu seq=%lu result=%s pending=%u\n",
+                packet.senderNodeId,
+                packet.seqId,
+                stored ? "ok" : "failed",
+                (unsigned)backlogStore.pendingCount());
+
+  uint16_t selfRange = routing.rangeToGateway(nowMs);
+  if (selfRange != ROUTE_INFINITY && selfRange < packet.forwarderRangeToGateway) {
+    scheduleForward(packet, nowMs);
+  } else {
+    Serial.printf("[ROUTE] Forward denied selfRange=%u packetForwarderRange=%u\n",
+                  selfRange,
+                  packet.forwarderRangeToGateway);
+  }
+}
+
+void pollLoRa(uint32_t nowMs) {
   int packetSize = LoRa.parsePacket();
-  if (packetSize < 3) return;
+  if (packetSize <= 0) return;
+  Serial.printf("[LORA RX] Packet bytes=%d\n", packetSize);
+  if (packetSize > (int)MAX_LORA_PACKET_SIZE) {
+    while (LoRa.available()) LoRa.read();
+    Serial.println("[LORA RX] Packet too large");
+    return;
+  }
 
-  uint8_t magicHi = LoRa.read();
-  uint8_t magicLo = LoRa.read();
-  uint16_t magic  = ((uint16_t)magicHi << 8) | magicLo;
-  if (magic != PKT_MAGIC) return;
+  uint8_t bytes[MAX_LORA_PACKET_SIZE];
+  size_t index = 0;
+  while (LoRa.available() && index < sizeof(bytes)) {
+    bytes[index++] = (uint8_t)LoRa.read();
+  }
+  if (index < 3) return;
 
-  uint8_t pktType = LoRa.read();
-
-  if (pktType == PKT_HEARTBEAT) {
-    if (LoRa.available() < 5) return;
-    uint32_t srcId    = LoRa.read() | ((uint32_t)LoRa.read() << 8) | ((uint32_t)LoRa.read() << 16);
-    uint16_t srcRange = LoRa.read() | ((uint16_t)LoRa.read() << 8);
-    int rssi = LoRa.packetRssi();
-    Serial.printf("[LORA RX] HEARTBEAT | from=%d range=%d rssi=%d\n", srcId, srcRange, rssi);
-
-    if (srcRange == 0) {
-      rangeToGateway = 1;
-      Serial.println("[ROUTE] Gateway terdeteksi, rangeToGateway=1");
-    }
-
-  } else if (pktType == PKT_DATA) {
-    if (LoRa.available() < 11) return;
-
-    uint32_t srcId  = LoRa.read() | ((uint32_t)LoRa.read() << 8) | ((uint32_t)LoRa.read() << 16);
-    uint32_t srcSeq = LoRa.read() | ((uint32_t)LoRa.read() << 8) |
-                      ((uint32_t)LoRa.read() << 16) | ((uint32_t)LoRa.read() << 24);
-    uint16_t senderRange    = LoRa.read() | ((uint16_t)LoRa.read() << 8);
-    uint16_t forwarderRange = LoRa.read() | ((uint16_t)LoRa.read() << 8);
-
-    uint8_t remaining[64] = {0};
-    uint8_t rIdx = 0;
-    while (LoRa.available() && rIdx < 63) remaining[rIdx++] = LoRa.read();
-
-    int rssi = LoRa.packetRssi();
-    Serial.printf("[LORA RX] DATA | from=%d seq=%d rssi=%d\n", srcId, srcSeq, rssi);
-
-    if (srcId == NODE_ID) return;
-    if (isDuplicate(srcId, srcSeq)) { Serial.println("[DEDUP] Skip"); return; }
-    addToDedup(srcId, srcSeq);
-
-    if (rangeToGateway < forwarderRange) {
-      LoRa.beginPacket();
-      LoRa.write((PKT_MAGIC >> 8) & 0xFF);
-      LoRa.write(PKT_MAGIC & 0xFF);
-      LoRa.write(PKT_DATA);
-      LoRa.write(srcId & 0xFF);
-      LoRa.write((srcId >> 8) & 0xFF);
-      LoRa.write((srcId >> 16) & 0xFF);
-      LoRa.write(srcSeq & 0xFF);
-      LoRa.write((srcSeq >> 8) & 0xFF);
-      LoRa.write((srcSeq >> 16) & 0xFF);
-      LoRa.write((srcSeq >> 24) & 0xFF);
-      LoRa.write(senderRange & 0xFF);
-      LoRa.write((senderRange >> 8) & 0xFF);
-      LoRa.write(rangeToGateway & 0xFF);
-      LoRa.write((rangeToGateway >> 8) & 0xFF);
-      for (uint8_t i = 0; i < rIdx; i++) LoRa.write(remaining[i]);
-      LoRa.endPacket();
-      Serial.printf("[ROUTE] Forwarded dari %d seq=%d\n", srcId, srcSeq);
-    }
+  uint8_t packetType = bytes[2];
+  int rssi = LoRa.packetRssi();
+  if (packetType == LORA_TYPE_HEARTBEAT) {
+    handleHeartbeat(bytes, index, rssi, nowMs);
+  } else if (packetType == LORA_TYPE_DATA) {
+    handleData(bytes, index, rssi, nowMs);
+  } else {
+    Serial.printf("[LORA RX] Unknown packet type=0x%02x size=%u\n", packetType, (unsigned)index);
   }
 }
 
-// ── BLE Callbacks ─────────────────────────────────────────
-class ReportCallback : public NimBLECharacteristicCallbacks {
-  void onWrite(NimBLECharacteristic* pChar) override {
-    std::string val = pChar->getValue();
-    if (val.empty()) return;
+class AppCallbacks : public BleBridgeCallbacks {
+ public:
+  bool onMobileMessage(const MobileMessage& message, DataPacket* out, bool* queued, char* error, size_t errorSize) override {
+    if (out == nullptr || queued == nullptr) return false;
+    DataPacket packet;
+    packet.senderNodeId = NODE_ID;
+    packet.seqId = nextSeqId++;
+    packet.senderRangeToGateway = routing.rangeToGateway(millis());
+    packet.forwarderRangeToGateway = packet.senderRangeToGateway;
+    packet.timestamp = message.timestamp == 0 ? nowSeconds() : message.timestamp;
+    packet.latE6 = message.latE6;
+    packet.lonE6 = message.lonE6;
+    packet.messageLength = (uint8_t)strlen(message.message);
+    strlcpy(packet.message, message.message, sizeof(packet.message));
 
-    Serial.println("[BLE RX] Report: " + String(val.c_str()));
+    uint32_t nowMs = millis();
+    dedupCache.add(packet.senderNodeId, packet.seqId, nowMs);
+    bool stored = backlogStore.upsert(packet, NODE_ID, nowMs);
+    Serial.printf("[BACKLOG] Store origin seq=%lu result=%s pending=%u\n",
+                  packet.seqId,
+                  stored ? "ok" : "failed",
+                  (unsigned)backlogStore.pendingCount());
 
-    // Parse field "message" dari JSON mobile
-    // Mobile kirim hasil buildPayloadMessage: "fine" | "medical_help" | dll
-    String json = String(val.c_str());
-    char msgVal[32] = "unknown";
-
-    int mi = json.indexOf("\"message\":\"");
-    if (mi >= 0) {
-      int start = mi + 11;
-      int end   = json.indexOf("\"", start);
-      if (end > start) {
-        json.substring(start, end).toCharArray(msgVal, sizeof(msgVal));
+    if (packet.senderRangeToGateway == ROUTE_INFINITY) {
+      *queued = true;
+      if (!pendingQueue.push(packet, nowMs)) {
+        strlcpy(error, "pending_full", errorSize);
+        Serial.printf("[PENDING] Queue failed origin seq=%lu size=%u\n",
+                      packet.seqId,
+                      (unsigned)pendingQueue.size());
+        return false;
       }
+      Serial.printf("[PENDING] Queued origin seq=%lu msg=%s size=%u\n",
+                    packet.seqId,
+                    packet.message,
+                    (unsigned)pendingQueue.size());
+    } else {
+      *queued = false;
+      if (!sendDataPacket(packet)) {
+        strlcpy(error, "lora_send_failed", errorSize);
+        return false;
+      }
+      Serial.printf("[BLE] Broadcast origin seq=%lu range=%u msg=%s\n",
+                    packet.seqId,
+                    packet.senderRangeToGateway,
+                    packet.message);
     }
 
-    const char* safeMsg = sanitizeMessage(msgVal);
-    Serial.printf("[BLE] Message: %s\n", safeMsg);
+    *out = packet;
+    return true;
+  }
 
-    // Forward ke gateway via LoRa
-    sendLoRaData(safeMsg);
+  void onInternetStatus(bool online, uint32_t nowMs) override {
+    routing.setInternetPath(online, nowMs);
+    Serial.printf("[BLE] Internet path %s\n", online ? "online" : "offline");
+  }
+
+  void onBacklogAck(uint32_t senderNodeId, uint32_t seqId) override {
+    bool acked = backlogStore.ack(senderNodeId, seqId);
+    Serial.printf("[BLE] Backlog ack sender=%lu seq=%lu result=%s pending=%u\n",
+                  senderNodeId,
+                  seqId,
+                  acked ? "ok" : "not_found",
+                  (unsigned)backlogStore.pendingCount());
   }
 };
 
-class InternetStatusCallback : public NimBLECharacteristicCallbacks {
-  void onWrite(NimBLECharacteristic* pChar) override {
-    std::string val = pChar->getValue();
-    if (val.empty()) return;
-    hasInternet = (val[0] == 1);
-    Serial.printf("[BLE RX] Internet: %s\n", hasInternet ? "online" : "offline");
-  }
-};
+AppCallbacks appCallbacks;
 
-// ── Setup BLE ─────────────────────────────────────────────
-void setupBLE() {
-  NimBLEDevice::init(BLE_DEVICE_NAME);
-
-  NimBLEServer*  pServer  = NimBLEDevice::createServer();
-  NimBLEService* pService = pServer->createService(LOOM_SERVICE_UUID);
-
-  NimBLECharacteristic* pReport = pService->createCharacteristic(
-    LOOM_REPORT_CHAR_UUID,
-    NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR
+void notifyStatus(uint32_t nowMs, bool force = false) {
+  if (!force && (int32_t)(nowMs - lastStatusNotifyMs) < 3000) return;
+  bleBridge.notifyNodeStatus(
+    routing.rangeToGateway(nowMs),
+    routing.neighborCount(nowMs),
+    pendingQueue.size(),
+    backlogStore.pendingCount(),
+    routing.internetPathActive(nowMs)
   );
-  pReport->setCallbacks(new ReportCallback());
+  lastStatusNotifyMs = nowMs;
+}
 
-  NimBLECharacteristic* pInternet = pService->createCharacteristic(
-    LOOM_INTERNET_STATUS_CHAR_UUID,
-    NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR
-  );
-  pInternet->setCallbacks(new InternetStatusCallback());
-
-  pService->start();
-
-  NimBLEAdvertising* pAdv = NimBLEDevice::getAdvertising();
-  pAdv->addServiceUUID(LOOM_SERVICE_UUID);
-  pAdv->start();
-
-  Serial.println("[OK] BLE advertising: " BLE_DEVICE_NAME);
 }
 
 void setup() {
   Serial.begin(115200);
   delay(500);
-  Serial.println("\n=== LOOM Node ===");
-  Serial.printf("Node ID: %d\n", NODE_ID);
+  Serial.println();
+  Serial.println("=== LOOM Node Firmware ===");
+  Serial.printf("Node ID: %lu\n", NODE_ID);
+  Serial.printf("Firmware: %s\n", FIRMWARE_VERSION);
+  Serial.printf("LoRa magic=0x%04x freq=%ld pins sck=%d miso=%d mosi=%d cs=%d rst=%d dio0=%d\n",
+                LORA_MAGIC,
+                LORA_FREQ,
+                LORA_SCK,
+                LORA_MISO,
+                LORA_MOSI,
+                LORA_CS,
+                LORA_RST,
+                LORA_DIO0);
+  Serial.printf("Route infinity=%u heartbeat=%lu-%lu ms recompute=%lu ms neighborTimeout=%lu ms\n",
+                ROUTE_INFINITY,
+                HEARTBEAT_MIN_MS,
+                HEARTBEAT_MAX_MS,
+                ROUTE_RECOMPUTE_MS,
+                NEIGHBOR_TIMEOUT_MS);
+  Serial.printf("Queue sizes dedup=%u pending=%u backlog=%u forward=%u\n",
+                (unsigned)DEDUP_CACHE_SIZE,
+                (unsigned)PENDING_QUEUE_SIZE,
+                (unsigned)BACKLOG_STORE_SIZE,
+                (unsigned)DELAYED_FORWARD_QUEUE_SIZE);
+
+  randomSeed((uint32_t)esp_random());
+  routing.begin(NODE_ID);
 
   SPI.begin(LORA_SCK, LORA_MISO, LORA_MOSI, LORA_CS);
   LoRa.setPins(LORA_CS, LORA_RST, LORA_DIO0);
   if (!LoRa.begin(LORA_FREQ)) {
-    Serial.println("[ERROR] LoRa gagal init!");
-    while (true);
+    Serial.println("[ERROR] LoRa init failed");
+    while (true) delay(1000);
   }
   Serial.println("[OK] LoRa ready");
 
-  setupBLE();
+  bleBridge.begin(NODE_ID, &appCallbacks);
+  Serial.println("[OK] BLE advertising");
 
-  Serial.println("[OK] Siap terima laporan dari HP via BLE");
-  Serial.println("[OK] Menunggu heartbeat gateway via LoRa...");
+  scheduleNextHeartbeat(millis());
+  notifyStatus(millis(), true);
 }
 
 void loop() {
-  unsigned long now = millis();
+  uint32_t nowMs = millis();
 
-  receiveAndForward();
+  pollLoRa(nowMs);
+  bool routeChanged = routing.tick(nowMs);
 
-  if (now - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
-    sendHeartbeat();
-    lastHeartbeat = now;
+  if ((int32_t)(nowMs - nextHeartbeatMs) >= 0) {
+    sendHeartbeatPacket();
+    scheduleNextHeartbeat(nowMs);
   }
 
-  if (now - lastData >= DATA_INTERVAL_MS) {
-    sendLoRaData(MESSAGE_VALUE);
-    lastData = now;
-  }
+  pendingQueue.prune(nowMs);
+  backlogStore.prune(nowMs);
+  dedupCache.prune(nowMs);
+  flushPending(nowMs);
+  processForwardQueue(nowMs);
+  bleBridge.tick(nowMs, backlogStore);
+  notifyStatus(nowMs, routeChanged);
 }
