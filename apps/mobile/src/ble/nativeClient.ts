@@ -176,6 +176,8 @@ export class NativeBleClient implements BleClient {
   isMock = false;
   private manager: NativeBleManager;
   private device: NativeDevice | null = null;
+  private connectedDeviceId: string | null = null;
+  private rawDevice: NativeDevice | undefined;
   private connectionDebugLog: string[] = [];
 
   constructor(manager: NativeBleManager) {
@@ -234,6 +236,8 @@ export class NativeBleClient implements BleClient {
       // Some Android adapters report an error when no scan is active.
     }
     const raw = rawDevice as NativeDevice | undefined;
+    this.connectedDeviceId = deviceId;
+    this.rawDevice = raw;
     this.connectionDebugLog = [
       `connect:deviceId=${deviceId}`,
       raw
@@ -272,6 +276,8 @@ export class NativeBleClient implements BleClient {
     if (!this.device) return;
     await this.device.cancelConnection();
     this.device = null;
+    this.connectedDeviceId = null;
+    this.rawDevice = undefined;
     this.connectionDebugLog = [];
   }
 
@@ -293,10 +299,40 @@ export class NativeBleClient implements BleClient {
       const message = error instanceof Error ? error.message : String(error);
       if (!message.includes("4-byte binary")) throw error;
 
-      debugLog.push("identity:fallback using nodeStatus because identity stayed binary");
+      debugLog.push("identity:reconnect because identity stayed binary");
+
+      if (await this.reconnectForIdentityRead(debugLog)) {
+        try {
+          return await this.readJsonWithRetries(
+            loomBleUuids.nodeIdentity,
+            bleNodeIdentitySchema.parse,
+            "identity:reconnect-read",
+            debugLog,
+            1
+          );
+        } catch (reconnectReadError) {
+          const reconnectReadMessage =
+            reconnectReadError instanceof Error
+              ? reconnectReadError.message
+              : String(reconnectReadError);
+          debugLog.push(
+            `identity:reconnect-read failed=${reconnectReadMessage.split("\n")[0]}`
+          );
+          if (reconnectReadMessage.includes("4-byte binary")) {
+            throw new Error(
+              this.formatBleDiagnostic(
+                "Identity BLE tetap mengembalikan 4-byte binary setelah reconnect dan rediscovery.",
+                debugLog
+              )
+            );
+          }
+        }
+      }
+
+      debugLog.push("nodeStatus:identity-fallback using nodeStatus after identity stayed binary");
 
       try {
-        const status = await this.readNodeStatusValue("identity:fallback-status-read", debugLog);
+        const status = await this.readNodeStatusValue("nodeStatus:identity-fallback-read", debugLog);
         const identity = bleNodeIdentitySchema.parse({
           protocol: loomBleProtocol,
           nodeId: status.nodeId,
@@ -487,9 +523,34 @@ export class NativeBleClient implements BleClient {
   }
 
   private async readNodeStatusValue(context: string, debugLog: string[]): Promise<BleNodeStatus> {
+    debugLog.push(`${context}:read uuid=${loomBleUuids.nodeStatus}`);
     const value = await this.read(loomBleUuids.nodeStatus);
     const payload = this.parseJsonValue(value, context, debugLog);
     return this.parseSchema(payload, bleNodeStatusSchema.parse, context, debugLog);
+  }
+
+  private async reconnectForIdentityRead(debugLog: string[]): Promise<boolean> {
+    const deviceId = this.connectedDeviceId ?? this.device?.id;
+    if (!deviceId) {
+      debugLog.push("identity:reconnect skipped=no connected device id");
+      return false;
+    }
+
+    try {
+      await this.device?.cancelConnection().catch(() => undefined);
+      this.device = null;
+      await wait(500);
+      await this.connect(deviceId, this.rawDevice);
+      for (const entry of this.connectionDebugLog) {
+        debugLog.push(`identity:reconnect:${entry}`);
+      }
+      return true;
+    } catch (error) {
+      debugLog.push(
+        `identity:reconnect failed=${error instanceof Error ? error.message : String(error)}`
+      );
+      return false;
+    }
   }
 
   private parseJsonValue(value: string | null, source: string, debugLog: string[]): unknown {
