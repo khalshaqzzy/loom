@@ -44,9 +44,7 @@ type NativeDevice = {
     listener: (error: unknown, characteristic: { value: string | null } | null) => void
   ): { remove(): void };
   services?(): Promise<Array<{ uuid: string }>>;
-  characteristicsForService?(
-    serviceUuid: string
-  ): Promise<
+  characteristicsForService?(serviceUuid: string): Promise<
     Array<{
       uuid: string;
       isReadable?: boolean;
@@ -315,9 +313,7 @@ export class NativeBleClient implements BleClient {
             reconnectReadError instanceof Error
               ? reconnectReadError.message
               : String(reconnectReadError);
-          debugLog.push(
-            `identity:reconnect-read failed=${reconnectReadMessage.split("\n")[0]}`
-          );
+          debugLog.push(`identity:reconnect-read failed=${reconnectReadMessage.split("\n")[0]}`);
           if (reconnectReadMessage.includes("4-byte binary")) {
             throw new Error(
               this.formatBleDiagnostic(
@@ -332,7 +328,10 @@ export class NativeBleClient implements BleClient {
       debugLog.push("nodeStatus:identity-fallback using nodeStatus after identity stayed binary");
 
       try {
-        const status = await this.readNodeStatusValue("nodeStatus:identity-fallback-read", debugLog);
+        const status = await this.readNodeStatusValue(
+          "nodeStatus:identity-fallback-read",
+          debugLog
+        );
         const identity = bleNodeIdentitySchema.parse({
           protocol: loomBleProtocol,
           nodeId: status.nodeId,
@@ -355,9 +354,14 @@ export class NativeBleClient implements BleClient {
     }
   }
 
-  async readValidationChallenge(nodeId?: number): Promise<BleValidationChallenge | BleValidationResponse> {
+  async readValidationChallenge(
+    nodeId?: number
+  ): Promise<BleValidationChallenge | BleValidationResponse> {
     const debugLog = [`validation:challenge-read uuid=${loomBleUuids.validation}`];
-    const payload = await this.readValidationChallengePayload(debugLog, "validation:challenge-read");
+    const payload = await this.readValidationChallengePayload(
+      debugLog,
+      "validation:challenge-read"
+    );
     const challenge = bleValidationChallengeSchema.safeParse(payload);
     if (challenge.success) return challenge.data;
 

@@ -1,4 +1,9 @@
-import type { BleBacklogItem, BleMessageAck, BleMobileMessage, BurstIngestMessage } from "@loom/contracts";
+import type {
+  BleBacklogItem,
+  BleMessageAck,
+  BleMobileMessage,
+  BurstIngestMessage
+} from "@loom/contracts";
 import { bleBacklogItemSchema, normalizeMeshCoordinates } from "@loom/contracts";
 import { getDatabase } from "./database";
 

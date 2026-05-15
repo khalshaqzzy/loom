@@ -24,9 +24,7 @@ export const toE6Coordinate = (value: number): number => Math.round(value * E6_S
 
 export const fromE6Coordinate = (value: number): number => value / E6_SCALE;
 
-export const normalizeMeshCoordinates = (
-  input: MeshCoordinateInput
-): NormalizedMeshCoordinates => {
+export const normalizeMeshCoordinates = (input: MeshCoordinateInput): NormalizedMeshCoordinates => {
   const { lat, lon, latE6, lonE6 } = input;
   const hasLat = hasValue(lat);
   const hasLon = hasValue(lon);
@@ -99,9 +97,7 @@ export const normalizeMeshCoordinates = (
 
 export const safeNormalizeMeshCoordinates = (
   input: MeshCoordinateInput
-):
-  | { success: true; data: NormalizedMeshCoordinates }
-  | { success: false; error: string } => {
+): { success: true; data: NormalizedMeshCoordinates } | { success: false; error: string } => {
   try {
     return { success: true, data: normalizeMeshCoordinates(input) };
   } catch (error) {
