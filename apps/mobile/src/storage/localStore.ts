@@ -1,23 +1,23 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { BleBacklogItem, MessageValue } from '@loom/contracts';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { BleBacklogItem, MessageValue } from "@loom/contracts";
 import {
   clearBacklogItems,
   countBacklogItems,
   listBacklogItems,
   upsertBacklogItem
-} from './backlogItems';
+} from "./backlogItems";
 import {
   clearSentMessages,
   listSentMessages,
   type LocalSentMessage,
   type SentMessageStatus
-} from './sentMessages';
-import { getOrCreateMobileInstallationId } from '../config/appConfig';
+} from "./sentMessages";
+import { getOrCreateMobileInstallationId } from "../config/appConfig";
 
-const LEGACY_NODE_KEY = '@loom_selected_node';
+const LEGACY_NODE_KEY = "@loom_selected_node";
 
 export type ReportStatus = SentMessageStatus;
-export type ReportType = 'safe' | 'emergency';
+export type ReportType = "safe" | "emergency";
 
 export type LocalReport = {
   id: string;

@@ -72,49 +72,49 @@ No tracked test files were found under `apps/mobile` or `firmware`.
 
 ## Current Implementation Inventory
 
-| Area | Current repo state | PRD-ready status |
-| --- | --- | --- |
-| Mobile app | Expo Router prototype with report/history/help/settings tabs, BLE mock/native wrapper, AsyncStorage history/backlog, location helper, and burst uploader. | Prototype only; not PRD-compliant |
-| Mobile workspace integration | `apps/mobile/package.json` exists, but root `package.json` workspaces do not include `apps/mobile`; no typecheck/test scripts in mobile package. | Missing |
-| Decision tree | `packages/decision-tree` is still README-only. Mobile has a local keyword helper instead. | Not implemented |
-| Firmware node | PlatformIO Arduino sketch with LoRa and partial NimBLE report/internet characteristics. | Prototype only; not protocol/routing compliant |
-| Firmware gateway | PlatformIO Arduino sketch with LoRa, WiFi, and direct HTTP POST to backend. | Optional prototype; not the PRD primary mobile-bridge path |
-| Firmware tests | No codec/routing/unit test harness. | Not implemented |
-| Shared LoRa constants | Contracts and fixtures use `0x4C4D`; PRD requires `0xD15A`. | Blocking mismatch |
-| Shared BLE contract | Mobile and firmware share three ad hoc UUIDs; missing required characteristics and schemas. | Incomplete |
+| Area                         | Current repo state                                                                                                                                        | PRD-ready status                                           |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| Mobile app                   | Expo Router prototype with report/history/help/settings tabs, BLE mock/native wrapper, AsyncStorage history/backlog, location helper, and burst uploader. | Prototype only; not PRD-compliant                          |
+| Mobile workspace integration | `apps/mobile/package.json` exists, but root `package.json` workspaces do not include `apps/mobile`; no typecheck/test scripts in mobile package.          | Missing                                                    |
+| Decision tree                | `packages/decision-tree` is still README-only. Mobile has a local keyword helper instead.                                                                 | Not implemented                                            |
+| Firmware node                | PlatformIO Arduino sketch with LoRa and partial NimBLE report/internet characteristics.                                                                   | Prototype only; not protocol/routing compliant             |
+| Firmware gateway             | PlatformIO Arduino sketch with LoRa, WiFi, and direct HTTP POST to backend.                                                                               | Optional prototype; not the PRD primary mobile-bridge path |
+| Firmware tests               | No codec/routing/unit test harness.                                                                                                                       | Not implemented                                            |
+| Shared LoRa constants        | Contracts and fixtures use `0x4C4D`; PRD requires `0xD15A`.                                                                                               | Blocking mismatch                                          |
+| Shared BLE contract          | Mobile and firmware share three ad hoc UUIDs; missing required characteristics and schemas.                                                               | Incomplete                                                 |
 
 ## PRD Requirement Coverage Snapshot
 
 ### Mobile PRD Requirements
 
-| Requirement | Current status |
-| --- | --- |
-| Works offline for compose/connect/local history | Partial. UI and AsyncStorage work offline, but connection is not trusted and storage statuses are non-PRD. |
-| Discover nearby nodes through BLE | Partial. Scan exists, mock exists, native scan filters by name prefix rather than service UUID. |
-| Validate node ID before trusted connection | Missing. Selecting a node immediately sets connected state. |
-| Decision-tree compression for free text | Partial/failing. Local keyword helper exists but emits unsupported values and raw text is sent when provided. |
-| Safe status fixed payload | Partial/failing. `aman` maps to `fine`, but payload shape is not PRD BLE contract and history stores Indonesian status labels. |
-| Local sent history | Partial. AsyncStorage history exists with non-PRD statuses. |
-| Receive backlog from node | Missing. No BLE backlog stream/read or ack. |
-| Direct HTTP burst when internet available | Partial/failing. Uploader exists but request schema is wrong and response handling is unsafe. |
-| Notify node when phone has internet | Partial/missing. Function exists but is not wired into app lifecycle; payload is a single byte rather than a documented contract. |
+| Requirement                                     | Current status                                                                                                                    |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Works offline for compose/connect/local history | Partial. UI and AsyncStorage work offline, but connection is not trusted and storage statuses are non-PRD.                        |
+| Discover nearby nodes through BLE               | Partial. Scan exists, mock exists, native scan filters by name prefix rather than service UUID.                                   |
+| Validate node ID before trusted connection      | Missing. Selecting a node immediately sets connected state.                                                                       |
+| Decision-tree compression for free text         | Partial/failing. Local keyword helper exists but emits unsupported values and raw text is sent when provided.                     |
+| Safe status fixed payload                       | Partial/failing. `aman` maps to `fine`, but payload shape is not PRD BLE contract and history stores Indonesian status labels.    |
+| Local sent history                              | Partial. AsyncStorage history exists with non-PRD statuses.                                                                       |
+| Receive backlog from node                       | Missing. No BLE backlog stream/read or ack.                                                                                       |
+| Direct HTTP burst when internet available       | Partial/failing. Uploader exists but request schema is wrong and response handling is unsafe.                                     |
+| Notify node when phone has internet             | Partial/missing. Function exists but is not wired into app lifecycle; payload is a single byte rather than a documented contract. |
 
 ### Firmware PRD Requirements
 
-| Requirement | Current status |
-| --- | --- |
-| Encode/decode HEARTBEAT exactly | Failing. Missing `heartbeatSeq`, wrong magic, little-endian fields, no isolated codec. |
-| Encode/decode DATA exactly | Failing. Missing `latE6`/`lonE6`, wrong magic, little-endian fields, extra message length byte. |
-| Heartbeat every 12 to 18 seconds | Failing. Node uses fixed 30 seconds; gateway fixed 15 seconds with no jitter. |
-| Neighbor timeout after 60 seconds | Missing. |
-| Route recompute every 5 seconds | Missing. |
-| Use `ROUTE_INFINITY = 65535` when route unknown | Constant exists; behavior is incomplete. |
-| Pending queue when no route exists | Missing. Node sends periodic data even with unknown route. |
-| Forward only if closer to gateway | Partial. Comparison exists, but route state is not computed correctly and no tests exist. |
-| Random forward delay 100 to 1000 ms | Missing. Forwarding is immediate. |
-| Dedup cache with 30-minute expiry | Partial/failing. Tiny ring buffers exist with no expiry. |
-| BLE/mobile handoff | Partial/failing. Only report write and internet status write exist. |
-| Gateway-range behavior when phone online | Partial/failing. `hasInternet` is set, but it does not drive `rangeToGateway = 0` with timeout semantics. |
+| Requirement                                     | Current status                                                                                            |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Encode/decode HEARTBEAT exactly                 | Failing. Missing `heartbeatSeq`, wrong magic, little-endian fields, no isolated codec.                    |
+| Encode/decode DATA exactly                      | Failing. Missing `latE6`/`lonE6`, wrong magic, little-endian fields, extra message length byte.           |
+| Heartbeat every 12 to 18 seconds                | Failing. Node uses fixed 30 seconds; gateway fixed 15 seconds with no jitter.                             |
+| Neighbor timeout after 60 seconds               | Missing.                                                                                                  |
+| Route recompute every 5 seconds                 | Missing.                                                                                                  |
+| Use `ROUTE_INFINITY = 65535` when route unknown | Constant exists; behavior is incomplete.                                                                  |
+| Pending queue when no route exists              | Missing. Node sends periodic data even with unknown route.                                                |
+| Forward only if closer to gateway               | Partial. Comparison exists, but route state is not computed correctly and no tests exist.                 |
+| Random forward delay 100 to 1000 ms             | Missing. Forwarding is immediate.                                                                         |
+| Dedup cache with 30-minute expiry               | Partial/failing. Tiny ring buffers exist with no expiry.                                                  |
+| BLE/mobile handoff                              | Partial/failing. Only report write and internet status write exist.                                       |
+| Gateway-range behavior when phone online        | Partial/failing. `hasInternet` is set, but it does not drive `rangeToGateway = 0` with timeout semantics. |
 
 ## Firmware Gap Analysis
 
@@ -726,33 +726,33 @@ PRD scenarios 24 through 40 require mobile BLE, mobile sync, firmware codec, rou
 
 ### Mobile
 
-| PRD acceptance criterion | Status |
-| --- | --- |
-| App discovers nearby BLE nodes | Partial |
-| App validates node ID before connection is accepted | Missing |
-| App sends safe-status fixed payload | Partial/failing |
-| App compresses free-text into one canonical `message` value | Failing |
-| App stores sent history offline | Partial |
-| App receives backlog from node | Missing |
+| PRD acceptance criterion                                         | Status          |
+| ---------------------------------------------------------------- | --------------- |
+| App discovers nearby BLE nodes                                   | Partial         |
+| App validates node ID before connection is accepted              | Missing         |
+| App sends safe-status fixed payload                              | Partial/failing |
+| App compresses free-text into one canonical `message` value      | Failing         |
+| App stores sent history offline                                  | Partial         |
+| App receives backlog from node                                   | Missing         |
 | App bursts backlog directly to backend API when internet returns | Partial/failing |
-| App handles partial accepted/duplicate/rejected ingest response | Missing |
-| App informs node when internet is available | Partial/missing |
+| App handles partial accepted/duplicate/rejected ingest response  | Missing         |
+| App informs node when internet is available                      | Partial/missing |
 
 ### Firmware
 
-| PRD acceptance criterion | Status |
-| --- | --- |
-| Firmware encodes and decodes HEARTBEAT exactly | Failing |
-| Firmware encodes and decodes DATA exactly | Failing |
-| Firmware uses big-endian byte order | Failing |
-| Firmware sends heartbeat every 12 to 18 seconds | Failing |
-| Firmware drops duplicate DATA by dedup cache | Partial/failing |
-| Firmware does not forward when `rangeToGateway = 65535` | Partial/untested |
-| Firmware forwards only when self range is lower | Partial/untested |
-| Firmware only updates `forwarderRangeToGateway` when forwarding | Partial/untested |
-| Firmware recomputes route after neighbor timeout | Missing |
-| Firmware handles stale gateway timeout before trusting child routes | Missing |
-| Firmware queues origin messages when no route exists | Missing |
+| PRD acceptance criterion                                            | Status           |
+| ------------------------------------------------------------------- | ---------------- |
+| Firmware encodes and decodes HEARTBEAT exactly                      | Failing          |
+| Firmware encodes and decodes DATA exactly                           | Failing          |
+| Firmware uses big-endian byte order                                 | Failing          |
+| Firmware sends heartbeat every 12 to 18 seconds                     | Failing          |
+| Firmware drops duplicate DATA by dedup cache                        | Partial/failing  |
+| Firmware does not forward when `rangeToGateway = 65535`             | Partial/untested |
+| Firmware forwards only when self range is lower                     | Partial/untested |
+| Firmware only updates `forwarderRangeToGateway` when forwarding     | Partial/untested |
+| Firmware recomputes route after neighbor timeout                    | Missing          |
+| Firmware handles stale gateway timeout before trusting child routes | Missing          |
+| Firmware queues origin messages when no route exists                | Missing          |
 
 ## Recommended Implementation Order
 

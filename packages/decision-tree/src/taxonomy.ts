@@ -20,7 +20,17 @@ export const messageValueMetadata: Record<MessageValue, MessageValueMetadata> = 
   medical_help: {
     label: "Bantuan medis",
     severity: "urgent",
-    keywords: ["medis", "obat", "dokter", "luka", "sakit", "patah", "berdarah", "injured", "medicine"]
+    keywords: [
+      "medis",
+      "obat",
+      "dokter",
+      "luka",
+      "sakit",
+      "patah",
+      "berdarah",
+      "injured",
+      "medicine"
+    ]
   },
   food_water: {
     label: "Makanan atau air",

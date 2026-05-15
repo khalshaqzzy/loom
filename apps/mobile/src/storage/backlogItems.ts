@@ -1,8 +1,8 @@
-import type { BleBacklogItem, BurstIngestMessage } from '@loom/contracts';
-import { bleBacklogItemSchema } from '@loom/contracts';
-import { getDatabase } from './database';
+import type { BleBacklogItem, BurstIngestMessage } from "@loom/contracts";
+import { bleBacklogItemSchema } from "@loom/contracts";
+import { getDatabase } from "./database";
 
-export type BacklogSyncStatus = 'pending' | 'syncing' | 'synced' | 'rejected' | 'failed';
+export type BacklogSyncStatus = "pending" | "syncing" | "synced" | "rejected" | "failed";
 
 export type LocalBacklogItem = BurstIngestMessage & {
   backlogId: string;
@@ -18,9 +18,9 @@ type BacklogRow = {
   sender_range_to_gateway: number;
   last_forwarder_range_to_gateway: number;
   timestamp: string;
-  message: BurstIngestMessage['message'];
+  message: BurstIngestMessage["message"];
   received_by_node_id: number | null;
-  source: BurstIngestMessage['source'];
+  source: BurstIngestMessage["source"];
   lat: number | null;
   lon: number | null;
   lat_e6: number | null;
@@ -100,7 +100,7 @@ export const upsertBacklogItem = async (input: BleBacklogItem): Promise<LocalBac
     item.lon ?? null,
     item.latE6 ?? null,
     item.lonE6 ?? null,
-    'pending',
+    "pending",
     0,
     now,
     now
@@ -108,17 +108,17 @@ export const upsertBacklogItem = async (input: BleBacklogItem): Promise<LocalBac
 
   return {
     ...item,
-    syncStatus: 'pending',
+    syncStatus: "pending",
     syncAttempts: 0,
     lastSyncError: null
   };
 };
 
 export const listBacklogItems = async (
-  statuses: BacklogSyncStatus[] = ['pending', 'failed', 'rejected']
+  statuses: BacklogSyncStatus[] = ["pending", "failed", "rejected"]
 ): Promise<LocalBacklogItem[]> => {
   const db = await getDatabase();
-  const placeholders = statuses.map(() => '?').join(',');
+  const placeholders = statuses.map(() => "?").join(",");
   const rows = await db.getAllAsync<BacklogRow>(
     `SELECT * FROM backlog_items WHERE sync_status IN (${placeholders}) ORDER BY updated_at ASC`,
     statuses
@@ -137,7 +137,7 @@ export const countBacklogItems = async (): Promise<number> => {
 export const markBacklogSyncing = async (ids: string[]): Promise<void> => {
   if (ids.length === 0) return;
   const db = await getDatabase();
-  const placeholders = ids.map(() => '?').join(',');
+  const placeholders = ids.map(() => "?").join(",");
   await db.runAsync(
     `UPDATE backlog_items SET sync_status = 'syncing', updated_at = ? WHERE backlog_id IN (${placeholders})`,
     [new Date().toISOString(), ...ids]
@@ -185,7 +185,7 @@ export const markBacklogRejected = async (
 export const markBacklogFailed = async (ids: string[], reason: string): Promise<void> => {
   if (ids.length === 0) return;
   const db = await getDatabase();
-  const placeholders = ids.map(() => '?').join(',');
+  const placeholders = ids.map(() => "?").join(",");
   await db.runAsync(
     `UPDATE backlog_items
      SET sync_status = 'failed',
@@ -199,5 +199,5 @@ export const markBacklogFailed = async (ids: string[], reason: string): Promise<
 
 export const clearBacklogItems = async (): Promise<void> => {
   const db = await getDatabase();
-  await db.runAsync('DELETE FROM backlog_items');
+  await db.runAsync("DELETE FROM backlog_items");
 };

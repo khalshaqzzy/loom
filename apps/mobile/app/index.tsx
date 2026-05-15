@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -12,41 +12,48 @@ import {
   TextInput,
   TouchableOpacity,
   View
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { messageValueMetadata } from '@loom/decision-tree';
-import { COLORS } from './_layout';
-import { connectAndValidateNode, notifyNodeInternetStatus, sendMobileMessageToNode } from '../src/ble/BleManager';
-import type { LoomNode } from '../src/ble/useBleScanner';
-import { useBleScanner } from '../src/ble/useBleScanner';
-import { getBleClient } from '../src/ble/bleClientFactory';
-import { useSelectedNode, setGlobalNode } from '../src/hooks/useSelectedNode';
-import { buildEmergencyMobileMessage, buildSafeMobileMessage } from '../src/messages/buildMobileMessage';
-import { upsertBacklogItem } from '../src/storage/backlogItems';
-import { applyMessageAck, markSentMessageFailed, saveSentDraft } from '../src/storage/sentMessages';
-import { formatCoords, getCurrentLocation } from '../src/utils/location';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { messageValueMetadata } from "@loom/decision-tree";
+import { COLORS } from "./_layout";
+import {
+  connectAndValidateNode,
+  notifyNodeInternetStatus,
+  sendMobileMessageToNode
+} from "../src/ble/BleManager";
+import type { LoomNode } from "../src/ble/useBleScanner";
+import { useBleScanner } from "../src/ble/useBleScanner";
+import { getBleClient } from "../src/ble/bleClientFactory";
+import { useSelectedNode, setGlobalNode } from "../src/hooks/useSelectedNode";
+import {
+  buildEmergencyMobileMessage,
+  buildSafeMobileMessage
+} from "../src/messages/buildMobileMessage";
+import { upsertBacklogItem } from "../src/storage/backlogItems";
+import { applyMessageAck, markSentMessageFailed, saveSentDraft } from "../src/storage/sentMessages";
+import { formatCoords, getCurrentLocation } from "../src/utils/location";
 
-type StatusType = 'aman' | 'butuh_bantuan' | 'darurat_kritis' | null;
+type StatusType = "aman" | "butuh_bantuan" | "darurat_kritis" | null;
 
 const MAX_MSG = 140;
 const QUICK_TEMPLATES = [
-  'Butuh air minum dan makanan',
-  'Butuh bantuan medis',
-  'Ada orang terjebak',
-  'Bahaya banjir di sekitar'
+  "Butuh air minum dan makanan",
+  "Butuh bantuan medis",
+  "Ada orang terjebak",
+  "Bahaya banjir di sekitar"
 ];
 
 const confirmSend = (message: string): Promise<boolean> =>
   new Promise((resolve) => {
-    Alert.alert('Konfirmasi Kategori', message, [
-      { text: 'Batal', style: 'cancel', onPress: () => resolve(false) },
-      { text: 'Kirim', onPress: () => resolve(true) }
+    Alert.alert("Konfirmasi Kategori", message, [
+      { text: "Batal", style: "cancel", onPress: () => resolve(false) },
+      { text: "Kirim", onPress: () => resolve(true) }
     ]);
   });
 
 export default function LaporanScreen() {
   const [selectedStatus, setSelectedStatus] = useState<StatusType>(null);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [showNodeModal, setShowNodeModal] = useState(false);
   const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
@@ -64,7 +71,7 @@ export default function LaporanScreen() {
         const stored = await upsertBacklogItem(item);
         await client.ackBacklog([stored.backlogId]);
       } catch (error) {
-        console.warn('[Backlog] Failed to store backlog item', error);
+        console.warn("[Backlog] Failed to store backlog item", error);
       }
     });
 
@@ -91,19 +98,25 @@ export default function LaporanScreen() {
       await refreshLocation();
       await notifyNodeInternetStatus().catch(() => {});
     } catch (error) {
-      console.error('[BLE Validation] Failed to validate node', error);
-      Alert.alert('Validasi Node Gagal', error instanceof Error ? error.message : 'Node tidak dapat divalidasi.');
+      console.error("[BLE Validation] Failed to validate node", error);
+      Alert.alert(
+        "Validasi Node Gagal",
+        error instanceof Error ? error.message : "Node tidak dapat divalidasi."
+      );
     }
   };
 
   const handleSend = async () => {
     if (!selectedStatus) {
-      Alert.alert('Pilih Status', 'Pilih status keselamatan terlebih dahulu.');
+      Alert.alert("Pilih Status", "Pilih status keselamatan terlebih dahulu.");
       return;
     }
 
     if (!selectedNode?.validated) {
-      Alert.alert('Node Belum Tervalidasi', 'Hubungkan dan validasi Edge Node LOOM terlebih dahulu.');
+      Alert.alert(
+        "Node Belum Tervalidasi",
+        "Hubungkan dan validasi Edge Node LOOM terlebih dahulu."
+      );
       return;
     }
 
@@ -111,26 +124,26 @@ export default function LaporanScreen() {
     try {
       const currentLocation = await getCurrentLocation();
       const payloadResult =
-        selectedStatus === 'aman'
+        selectedStatus === "aman"
           ? {
               ok: true as const,
               payload: buildSafeMobileMessage(currentLocation),
               rawText: null,
-              confidence: 'high' as const
+              confidence: "high" as const
             }
           : buildEmergencyMobileMessage(message, currentLocation);
 
       if (!payloadResult.ok) {
         Alert.alert(
-          'Kategori Belum Jelas',
+          "Kategori Belum Jelas",
           `Tulis pesan lebih spesifik atau gunakan template. Saran: ${payloadResult.suggestions
             .map((value) => messageValueMetadata[value].label)
-            .join(', ')}.`
+            .join(", ")}.`
         );
         return;
       }
 
-      if (payloadResult.confidence === 'medium') {
+      if (payloadResult.confidence === "medium") {
         const confirmed = await confirmSend(
           `Kategori terdeteksi: ${messageValueMetadata[payloadResult.payload.message].label}. Kirim kategori ini?`
         );
@@ -142,37 +155,50 @@ export default function LaporanScreen() {
       await applyMessageAck(ack);
 
       if (!ack.accepted) {
-        await markSentMessageFailed(payloadResult.payload.clientMessageId, ack.error || 'node_rejected');
+        await markSentMessageFailed(
+          payloadResult.payload.clientMessageId,
+          ack.error || "node_rejected"
+        );
       }
 
       setSelectedStatus(null);
-      setMessage('');
+      setMessage("");
 
       Alert.alert(
-        ack.accepted ? 'Laporan Diterima Node' : 'Laporan Ditolak Node',
+        ack.accepted ? "Laporan Diterima Node" : "Laporan Ditolak Node",
         ack.accepted
-          ? `Node menerima pesan ${payloadResult.payload.message}. Status: ${ack.queued ? 'queued' : 'sent_to_node'}.`
-          : 'Node menolak pesan. Pastikan node tervalidasi dan coba lagi.'
+          ? `Node menerima pesan ${payloadResult.payload.message}. Status: ${ack.queued ? "queued" : "sent_to_node"}.`
+          : "Node menolak pesan. Pastikan node tervalidasi dan coba lagi."
       );
     } catch (error) {
-      console.error('[Send] Error:', error);
-      Alert.alert('Gagal Mengirim', error instanceof Error ? error.message : 'Terjadi kesalahan saat mengirim laporan.');
+      console.error("[Send] Error:", error);
+      Alert.alert(
+        "Gagal Mengirim",
+        error instanceof Error ? error.message : "Terjadi kesalahan saat mengirim laporan."
+      );
     } finally {
       setIsSending(false);
     }
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <SafeAreaView style={styles.safe} edges={["top"]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={styles.header}>
             <View style={styles.headerTitleRow}>
               <Text style={styles.appName}>LOOM</Text>
               <View style={[styles.modeBadge, isConnected && styles.modeBadgeConnected]}>
                 <View style={[styles.modeDot, isConnected && styles.modeDotConnected]} />
                 <Text style={[styles.modeText, isConnected && styles.modeTextConnected]}>
-                  {isConnected ? 'Tervalidasi' : 'Offline'}
+                  {isConnected ? "Tervalidasi" : "Offline"}
                 </Text>
               </View>
             </View>
@@ -182,11 +208,11 @@ export default function LaporanScreen() {
           <View style={styles.nodeCard}>
             <View style={styles.nodeCardLeft}>
               <Text style={styles.nodeLabelSmall}>EDGE NODE</Text>
-              <Text style={styles.nodeName}>{selectedNode?.name || 'Belum ada node'}</Text>
+              <Text style={styles.nodeName}>{selectedNode?.name || "Belum ada node"}</Text>
               <Text style={styles.nodeSignalText}>
                 {selectedNode
                   ? `Node ID ${selectedNode.nodeId} - ${rssiToMeters(selectedNode.rssi)}`
-                  : 'Pilih dan validasi node sebelum mengirim laporan'}
+                  : "Pilih dan validasi node sebelum mengirim laporan"}
               </Text>
             </View>
           </View>
@@ -214,15 +240,28 @@ export default function LaporanScreen() {
 
           <Text style={styles.sectionLabel}>STATUS KESELAMATAN</Text>
           {[
-            ['aman', 'Aman', 'Saya selamat dan tidak memerlukan bantuan.', COLORS.green],
-            ['butuh_bantuan', 'Butuh Bantuan', 'Butuh bantuan, tetapi bukan bahaya langsung.', COLORS.orange],
-            ['darurat_kritis', 'Darurat Kritis', 'Situasi mengancam jiwa atau bahaya sekitar.', COLORS.red]
+            ["aman", "Aman", "Saya selamat dan tidak memerlukan bantuan.", COLORS.green],
+            [
+              "butuh_bantuan",
+              "Butuh Bantuan",
+              "Butuh bantuan, tetapi bukan bahaya langsung.",
+              COLORS.orange
+            ],
+            [
+              "darurat_kritis",
+              "Darurat Kritis",
+              "Situasi mengancam jiwa atau bahaya sekitar.",
+              COLORS.red
+            ]
           ].map(([key, title, desc, color]) => (
             <TouchableOpacity
               key={key}
               style={[
                 styles.statusOption,
-                selectedStatus === key && { backgroundColor: COLORS.accentLight, borderColor: color }
+                selectedStatus === key && {
+                  backgroundColor: COLORS.accentLight,
+                  borderColor: color
+                }
               ]}
               onPress={() => setSelectedStatus(key as StatusType)}
             >
@@ -238,7 +277,9 @@ export default function LaporanScreen() {
 
           <View style={styles.messageHeader}>
             <Text style={styles.sectionLabel}>PESAN DARURAT</Text>
-            <Text style={styles.counterText}>{message.length}/{MAX_MSG}</Text>
+            <Text style={styles.counterText}>
+              {message.length}/{MAX_MSG}
+            </Text>
           </View>
           <TextInput
             style={styles.messageInput}
@@ -255,7 +296,9 @@ export default function LaporanScreen() {
             <TouchableOpacity
               key={template}
               style={styles.templateBtn}
-              onPress={() => setMessage((prev) => (prev ? `${prev} ${template}` : template).slice(0, MAX_MSG))}
+              onPress={() =>
+                setMessage((prev) => (prev ? `${prev} ${template}` : template).slice(0, MAX_MSG))
+              }
             >
               <Text style={styles.templateText}>{template}</Text>
             </TouchableOpacity>
@@ -267,11 +310,11 @@ export default function LaporanScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.locationLabel}>LOKASI</Text>
                 <Text style={styles.locationValue}>
-                  {location ? formatCoords(location.lat, location.lon) : 'Belum diambil'}
+                  {location ? formatCoords(location.lat, location.lon) : "Belum diambil"}
                 </Text>
               </View>
               <TouchableOpacity onPress={refreshLocation} disabled={locationLoading}>
-                <Text style={styles.refreshBtn}>{locationLoading ? '...' : 'Perbarui'}</Text>
+                <Text style={styles.refreshBtn}>{locationLoading ? "..." : "Perbarui"}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -281,24 +324,42 @@ export default function LaporanScreen() {
             onPress={handleSend}
             disabled={!selectedStatus || isSending}
           >
-            {isSending ? <ActivityIndicator color="white" /> : <Text style={styles.sendBtnText}>Kirim Laporan</Text>}
+            {isSending ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.sendBtnText}>Kirim Laporan</Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
 
       <Modal visible={showNodeModal} animationType="slide" transparent>
-        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => { setShowNodeModal(false); stopScan(); }}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => {
+            setShowNodeModal(false);
+            stopScan();
+          }}
+        >
           <View style={styles.modalSheet} onStartShouldSetResponder={() => true}>
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Cari Edge Node LOOM</Text>
-              <TouchableOpacity onPress={() => { setShowNodeModal(false); stopScan(); }}>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowNodeModal(false);
+                  stopScan();
+                }}
+              >
                 <Text style={styles.modalClose}>Tutup</Text>
               </TouchableOpacity>
             </View>
             {client.isMock && (
               <View style={styles.mockBanner}>
-                <Text style={styles.mockBannerText}>Mode simulasi aktif. BLE native tidak tersedia di environment ini.</Text>
+                <Text style={styles.mockBannerText}>
+                  Mode simulasi aktif. BLE native tidak tersedia di environment ini.
+                </Text>
               </View>
             )}
             {isScanning && (
@@ -314,11 +375,15 @@ export default function LaporanScreen() {
               data={nodes}
               keyExtractor={(item) => item.deviceId}
               renderItem={({ item }) => (
-                <TouchableOpacity style={styles.nodeListItem} onPress={() => handleSelectNode(item)}>
+                <TouchableOpacity
+                  style={styles.nodeListItem}
+                  onPress={() => handleSelectNode(item)}
+                >
                   <View style={{ flex: 1 }}>
                     <Text style={styles.nodeListName}>{item.name}</Text>
                     <Text style={styles.nodeListDistance}>
-                      {item.nodeId ? `Node ID ${item.nodeId} - ` : ''}{rssiToMeters(item.rssi)}
+                      {item.nodeId ? `Node ID ${item.nodeId} - ` : ""}
+                      {rssiToMeters(item.rssi)}
                     </Text>
                   </View>
                   <Text style={styles.nodeConnectBtnText}>Validasi</Text>
@@ -326,7 +391,9 @@ export default function LaporanScreen() {
               )}
             />
             <TouchableOpacity style={styles.rescanBtn} onPress={startScan} disabled={isScanning}>
-              <Text style={styles.rescanBtnText}>{isScanning ? 'Memindai...' : 'Pindai Ulang'}</Text>
+              <Text style={styles.rescanBtnText}>
+                {isScanning ? "Memindai..." : "Pindai Ulang"}
+              </Text>
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
@@ -340,11 +407,11 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { padding: 20, paddingBottom: 40 },
   header: { marginBottom: 16 },
-  headerTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  appName: { fontSize: 26, fontWeight: '800', color: COLORS.textPrimary, letterSpacing: 1 },
+  headerTitleRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  appName: { fontSize: 26, fontWeight: "800", color: COLORS.textPrimary, letterSpacing: 1 },
   modeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 5,
     backgroundColor: COLORS.surfaceAlt,
     borderRadius: 20,
@@ -356,9 +423,9 @@ const styles = StyleSheet.create({
   modeBadgeConnected: { backgroundColor: COLORS.greenLight, borderColor: COLORS.green },
   modeDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.textMuted },
   modeDotConnected: { backgroundColor: COLORS.green },
-  modeText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: '600' },
+  modeText: { fontSize: 12, color: COLORS.textSecondary, fontWeight: "600" },
   modeTextConnected: { color: COLORS.green },
-  modeSubtitle: { fontSize: 11, color: COLORS.textMuted, fontWeight: '600', marginTop: 2 },
+  modeSubtitle: { fontSize: 11, color: COLORS.textMuted, fontWeight: "600", marginTop: 2 },
   nodeCard: {
     backgroundColor: COLORS.surface,
     borderRadius: 12,
@@ -368,10 +435,16 @@ const styles = StyleSheet.create({
     marginBottom: 10
   },
   nodeCardLeft: { flex: 1 },
-  nodeLabelSmall: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1, marginBottom: 2 },
-  nodeName: { fontSize: 17, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 4 },
-  nodeSignalText: { fontSize: 12, color: COLORS.green, fontWeight: '500' },
-  nodeButtonRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  nodeLabelSmall: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: COLORS.textMuted,
+    letterSpacing: 1,
+    marginBottom: 2
+  },
+  nodeName: { fontSize: 17, fontWeight: "700", color: COLORS.textPrimary, marginBottom: 4 },
+  nodeSignalText: { fontSize: 12, color: COLORS.green, fontWeight: "500" },
+  nodeButtonRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
   nodeBtn: {
     flex: 1,
     paddingVertical: 11,
@@ -379,12 +452,18 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     borderWidth: 1,
     borderColor: COLORS.border,
-    alignItems: 'center'
+    alignItems: "center"
   },
   nodeBtnPrimary: { backgroundColor: COLORS.textPrimary, borderColor: COLORS.textPrimary },
-  nodeBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary },
-  nodeBtnPrimaryText: { color: 'white' },
-  sectionLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1, marginBottom: 10 },
+  nodeBtnText: { fontSize: 14, fontWeight: "600", color: COLORS.textPrimary },
+  nodeBtnPrimaryText: { color: "white" },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.textMuted,
+    letterSpacing: 1,
+    marginBottom: 10
+  },
   statusOption: {
     backgroundColor: COLORS.surface,
     borderRadius: 12,
@@ -393,11 +472,16 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 10
   },
-  statusLeft: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, flex: 1 },
+  statusLeft: { flexDirection: "row", alignItems: "flex-start", gap: 12, flex: 1 },
   statusDot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
-  statusTitle: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary, marginBottom: 2 },
+  statusTitle: { fontSize: 15, fontWeight: "700", color: COLORS.textPrimary, marginBottom: 2 },
   statusDesc: { fontSize: 12, color: COLORS.textSecondary, lineHeight: 17 },
-  messageHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  messageHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10
+  },
   counterText: { fontSize: 12, color: COLORS.textMuted },
   messageInput: {
     backgroundColor: COLORS.surface,
@@ -408,10 +492,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.textPrimary,
     minHeight: 90,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
     marginBottom: 12
   },
-  templateLabel: { fontSize: 11, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1, marginBottom: 8 },
+  templateLabel: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: COLORS.textMuted,
+    letterSpacing: 1,
+    marginBottom: 8
+  },
   templateBtn: {
     backgroundColor: COLORS.surface,
     borderRadius: 10,
@@ -428,50 +518,55 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     marginBottom: 20,
-    overflow: 'hidden'
+    overflow: "hidden"
   },
-  locationRow: { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 10 },
-  locationLabel: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 0.8 },
-  locationValue: { fontSize: 13, color: COLORS.textPrimary, fontWeight: '500', marginTop: 1 },
-  refreshBtn: { fontSize: 13, color: COLORS.accent, fontWeight: '600' },
+  locationRow: { flexDirection: "row", alignItems: "center", padding: 14, gap: 10 },
+  locationLabel: { fontSize: 10, fontWeight: "700", color: COLORS.textMuted, letterSpacing: 0.8 },
+  locationValue: { fontSize: 13, color: COLORS.textPrimary, fontWeight: "500", marginTop: 1 },
+  refreshBtn: { fontSize: 13, color: COLORS.accent, fontWeight: "600" },
   sendBtn: {
     backgroundColor: COLORS.accent,
     borderRadius: 14,
     paddingVertical: 17,
-    alignItems: 'center',
-    justifyContent: 'center'
+    alignItems: "center",
+    justifyContent: "center"
   },
   sendBtnDisabled: { backgroundColor: COLORS.border },
-  sendBtnText: { color: 'white', fontSize: 16, fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sendBtnText: { color: "white", fontSize: 16, fontWeight: "700" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   modalSheet: {
     backgroundColor: COLORS.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     paddingHorizontal: 20,
     paddingBottom: 40,
-    maxHeight: '75%'
+    maxHeight: "75%"
   },
   modalHandle: {
     width: 40,
     height: 4,
     backgroundColor: COLORS.border,
     borderRadius: 2,
-    alignSelf: 'center',
+    alignSelf: "center",
     marginTop: 12,
     marginBottom: 16
   },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  modalTitle: { fontSize: 17, fontWeight: '700', color: COLORS.textPrimary },
-  modalClose: { fontSize: 13, color: COLORS.accent, padding: 4, fontWeight: '700' },
-  mockBanner: { backgroundColor: '#FFF8E1', borderRadius: 8, padding: 10, marginBottom: 10 },
-  mockBannerText: { fontSize: 12, color: '#7A6000', fontWeight: '500' },
-  scanningRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12
+  },
+  modalTitle: { fontSize: 17, fontWeight: "700", color: COLORS.textPrimary },
+  modalClose: { fontSize: 13, color: COLORS.accent, padding: 4, fontWeight: "700" },
+  mockBanner: { backgroundColor: "#FFF8E1", borderRadius: 8, padding: 10, marginBottom: 10 },
+  mockBannerText: { fontSize: 12, color: "#7A6000", fontWeight: "500" },
+  scanningRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 12 },
   scanningText: { fontSize: 13, color: COLORS.textSecondary },
-  noNodesText: { textAlign: 'center', color: COLORS.textMuted, fontSize: 14, marginVertical: 20 },
+  noNodesText: { textAlign: "center", color: COLORS.textMuted, fontSize: 14, marginVertical: 20 },
   nodeListItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     backgroundColor: COLORS.bg,
     borderRadius: 12,
@@ -480,17 +575,17 @@ const styles = StyleSheet.create({
     padding: 14,
     marginBottom: 8
   },
-  nodeListName: { fontSize: 15, fontWeight: '700', color: COLORS.textPrimary },
+  nodeListName: { fontSize: 15, fontWeight: "700", color: COLORS.textPrimary },
   nodeListDistance: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  nodeConnectBtnText: { color: COLORS.accent, fontSize: 12, fontWeight: '700' },
+  nodeConnectBtnText: { color: COLORS.accent, fontSize: 12, fontWeight: "700" },
   rescanBtn: {
     backgroundColor: COLORS.bg,
     borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.border,
     paddingVertical: 12,
-    alignItems: 'center',
+    alignItems: "center",
     marginVertical: 12
   },
-  rescanBtnText: { fontSize: 14, fontWeight: '600', color: COLORS.textPrimary }
+  rescanBtnText: { fontSize: 14, fontWeight: "600", color: COLORS.textPrimary }
 });

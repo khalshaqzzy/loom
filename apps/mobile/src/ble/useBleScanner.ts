@@ -1,8 +1,8 @@
-import { useCallback, useState } from 'react';
-import { Alert } from 'react-native';
-import type { DiscoveredNode } from './client';
-import { rssiToMeters } from './client';
-import { getBleClient } from './bleClientFactory';
+import { useCallback, useState } from "react";
+import { Alert } from "react-native";
+import type { DiscoveredNode } from "./client";
+import { rssiToMeters } from "./client";
+import { getBleClient } from "./bleClientFactory";
 
 export type LoomNode = DiscoveredNode;
 
@@ -16,7 +16,7 @@ export const useBleScanner = () => {
     const client = getBleClient();
     const permitted = await client.requestPermissions();
     if (!permitted) {
-      Alert.alert('Izin Ditolak', 'Aplikasi membutuhkan Bluetooth untuk mencari Node LOOM.');
+      Alert.alert("Izin Ditolak", "Aplikasi membutuhkan Bluetooth untuk mencari Node LOOM.");
       return;
     }
 

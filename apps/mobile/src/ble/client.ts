@@ -7,13 +7,13 @@ import type {
   BleNodeStatus,
   BleValidationChallenge,
   BleValidationResponse
-} from '@loom/contracts';
+} from "@loom/contracts";
 
 export type DiscoveredNode = {
   deviceId: string;
   name: string;
   rssi: number | null;
-  distance: 'dekat' | 'sedang' | 'jauh';
+  distance: "dekat" | "sedang" | "jauh";
   nodeId?: number;
   rawDevice?: unknown;
 };
@@ -36,15 +36,15 @@ export type BleClient = {
   subscribeNodeStatus(onStatus: (status: BleNodeStatus) => void): Unsubscribe;
 };
 
-export const rssiToDistance = (rssi: number | null): 'dekat' | 'sedang' | 'jauh' => {
-  if (rssi === null) return 'jauh';
-  if (rssi >= -65) return 'dekat';
-  if (rssi >= -80) return 'sedang';
-  return 'jauh';
+export const rssiToDistance = (rssi: number | null): "dekat" | "sedang" | "jauh" => {
+  if (rssi === null) return "jauh";
+  if (rssi >= -65) return "dekat";
+  if (rssi >= -80) return "sedang";
+  return "jauh";
 };
 
 export const rssiToMeters = (rssi: number | null): string => {
-  if (rssi === null) return '> 50 m';
+  if (rssi === null) return "> 50 m";
   const meters = Math.round(Math.pow(10, (-59 - rssi) / 20));
   return `~ ${meters} m`;
 };

@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import type { BleNodeStatus } from '@loom/contracts';
-import type { DiscoveredNode } from '../ble/client';
+import { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { BleNodeStatus } from "@loom/contracts";
+import type { DiscoveredNode } from "../ble/client";
 
-const NODE_KEY = '@loom_validated_node';
+const NODE_KEY = "@loom_validated_node";
 
 export type SelectedNode = DiscoveredNode & {
   nodeId: number;
@@ -69,7 +69,7 @@ export const useSelectedNode = (): NodeState => {
             nodeId: parsed.nodeId,
             validated: false,
             rssi: null,
-            distance: 'jauh'
+            distance: "jauh"
           };
           globalConnected = false;
           notifyListeners();

@@ -146,16 +146,16 @@ Service UUID:
 
 Characteristics:
 
-| Purpose | UUID | Direction | Properties | Current state |
-| --- | --- | --- | --- | --- |
-| Node identity | `4fafc201-1fb5-459e-8fcc-c5c9c331914c` | firmware -> mobile | read | Add |
-| Validation | `4fafc201-1fb5-459e-8fcc-c5c9c331914d` | mobile <-> firmware | read, write, notify | Add |
-| Message write | `beb5483e-36e1-4688-b7f5-ea07361b26a8` | mobile -> firmware | write, notify/ack pairing | Keep existing UUID |
-| Message ack | `beb5483e-36e1-4688-b7f5-ea07361b26a9` | firmware -> mobile | notify | Add |
-| Backlog stream | `5f7e2d00-6c2e-4e68-9b7a-9bc6b193f001` | firmware -> mobile | read, notify | Add |
-| Backlog ack | `5f7e2d00-6c2e-4e68-9b7a-9bc6b193f002` | mobile -> firmware | write | Add |
-| Internet status | `cba1d466-344c-4be3-ab3f-189f80dd7518` | mobile -> firmware | write | Keep existing UUID |
-| Node status | `cba1d466-344c-4be3-ab3f-189f80dd7519` | firmware -> mobile | read, notify | Add |
+| Purpose         | UUID                                   | Direction           | Properties                | Current state      |
+| --------------- | -------------------------------------- | ------------------- | ------------------------- | ------------------ |
+| Node identity   | `4fafc201-1fb5-459e-8fcc-c5c9c331914c` | firmware -> mobile  | read                      | Add                |
+| Validation      | `4fafc201-1fb5-459e-8fcc-c5c9c331914d` | mobile <-> firmware | read, write, notify       | Add                |
+| Message write   | `beb5483e-36e1-4688-b7f5-ea07361b26a8` | mobile -> firmware  | write, notify/ack pairing | Keep existing UUID |
+| Message ack     | `beb5483e-36e1-4688-b7f5-ea07361b26a9` | firmware -> mobile  | notify                    | Add                |
+| Backlog stream  | `5f7e2d00-6c2e-4e68-9b7a-9bc6b193f001` | firmware -> mobile  | read, notify              | Add                |
+| Backlog ack     | `5f7e2d00-6c2e-4e68-9b7a-9bc6b193f002` | mobile -> firmware  | write                     | Add                |
+| Internet status | `cba1d466-344c-4be3-ab3f-189f80dd7518` | mobile -> firmware  | write                     | Keep existing UUID |
+| Node status     | `cba1d466-344c-4be3-ab3f-189f80dd7519` | firmware -> mobile  | read, notify              | Add                |
 
 BLE encoding rules:
 
@@ -451,7 +451,11 @@ Subplan:
 ```ts
 type CompressionResult =
   | { ok: true; message: MessageValue; confidence: "high" | "medium"; matchedKeywords: string[] }
-  | { ok: false; reason: "empty" | "too_long" | "unsupported" | "ambiguous"; suggestions: MessageValue[] };
+  | {
+      ok: false;
+      reason: "empty" | "too_long" | "unsupported" | "ambiguous";
+      suggestions: MessageValue[];
+    };
 ```
 
 6. Add Indonesian and English keyword coverage for rescue, medical, food/water, shelter, trapped, and danger.
@@ -1540,20 +1544,20 @@ Both owners:
 
 ## 9. Integration Test Matrix
 
-| Scenario | Firmware responsibility | Mobile responsibility | Expected result |
-| --- | --- | --- | --- |
-| BLE discovery | Advertise service and identity | Scan by service UUID | Node appears in nearby list |
-| Node validation success | Challenge and validate matching node ID | Read identity, echo challenge | Trusted connected state |
-| Node validation mismatch | Reject mismatch | Show failed state | No message writes allowed |
-| Safe status | Accept `fine`, assign seqId | Send fixed `fine` | History records safe status |
-| Emergency message | Accept canonical value only | Compress free text first | No raw text enters LoRa |
-| Unknown route | Queue origin DATA | Mark status `queued` | Pending count increases |
-| Known route | Broadcast origin DATA | Mark `sent_to_node` | LoRa packet sent |
-| Backlog receive | Notify backlog item | Store then ack | Firmware marks item acked |
-| Phone online | Set range 0 from fresh status | Write online status | Node status range 0 |
-| Phone offline | Expire/clear internet path | Write offline status | Route recompute resumes |
-| LoRa duplicate | Dedup drops repeat | Backend duplicate marks synced | No duplicate DB row |
-| Burst partial response | N/A | Per-item update | Accepted/duplicate synced; rejected retained |
+| Scenario                 | Firmware responsibility                 | Mobile responsibility          | Expected result                              |
+| ------------------------ | --------------------------------------- | ------------------------------ | -------------------------------------------- |
+| BLE discovery            | Advertise service and identity          | Scan by service UUID           | Node appears in nearby list                  |
+| Node validation success  | Challenge and validate matching node ID | Read identity, echo challenge  | Trusted connected state                      |
+| Node validation mismatch | Reject mismatch                         | Show failed state              | No message writes allowed                    |
+| Safe status              | Accept `fine`, assign seqId             | Send fixed `fine`              | History records safe status                  |
+| Emergency message        | Accept canonical value only             | Compress free text first       | No raw text enters LoRa                      |
+| Unknown route            | Queue origin DATA                       | Mark status `queued`           | Pending count increases                      |
+| Known route              | Broadcast origin DATA                   | Mark `sent_to_node`            | LoRa packet sent                             |
+| Backlog receive          | Notify backlog item                     | Store then ack                 | Firmware marks item acked                    |
+| Phone online             | Set range 0 from fresh status           | Write online status            | Node status range 0                          |
+| Phone offline            | Expire/clear internet path              | Write offline status           | Route recompute resumes                      |
+| LoRa duplicate           | Dedup drops repeat                      | Backend duplicate marks synced | No duplicate DB row                          |
+| Burst partial response   | N/A                                     | Per-item update                | Accepted/duplicate synced; rejected retained |
 
 ## 10. Backend/Web Touch Policy
 

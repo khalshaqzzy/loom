@@ -1,9 +1,9 @@
-import * as Network from 'expo-network';
-import type { BleMobileMessage, BleMessageAck } from '@loom/contracts';
-import { bleInternetStatusSchema, loomBleUuids } from '@loom/contracts';
-import { getOrCreateMobileInstallationId } from '../config/appConfig';
-import type { DiscoveredNode } from './client';
-import { getBleClient } from './bleClientFactory';
+import * as Network from "expo-network";
+import type { BleMobileMessage, BleMessageAck } from "@loom/contracts";
+import { bleInternetStatusSchema, loomBleUuids } from "@loom/contracts";
+import { getOrCreateMobileInstallationId } from "../config/appConfig";
+import type { DiscoveredNode } from "./client";
+import { getBleClient } from "./bleClientFactory";
 
 export const LOOM_SERVICE_UUID = loomBleUuids.service;
 export const LOOM_REPORT_CHAR_UUID = loomBleUuids.messageWrite;
@@ -33,7 +33,7 @@ export const connectAndValidateNode = async (node: DiscoveredNode) => {
     const validation = await client.validateNode(identity.nodeId, challenge.challenge);
 
     if (!validation.validated) {
-      throw new Error('Validasi node gagal.');
+      throw new Error("Validasi node gagal.");
     }
 
     return {
@@ -44,23 +44,24 @@ export const connectAndValidateNode = async (node: DiscoveredNode) => {
     };
   } catch (error) {
     await client.disconnect().catch(() => undefined);
-    const message = error instanceof Error ? error.message : '';
+    const message = error instanceof Error ? error.message : "";
     if (
-      message.includes('JSON') ||
-      message.includes('BLE payload') ||
-      message.includes('Payload BLE') ||
-      message.includes('Log BLE') ||
-      message.includes('Respons validasi')
+      message.includes("JSON") ||
+      message.includes("BLE payload") ||
+      message.includes("Payload BLE") ||
+      message.includes("Log BLE") ||
+      message.includes("Respons validasi")
     ) {
-      throw new Error(`Validasi node gagal. Respons BLE node tidak valid atau belum siap.\n\n${message}`);
+      throw new Error(
+        `Validasi node gagal. Respons BLE node tidak valid atau belum siap.\n\n${message}`
+      );
     }
     throw error;
   }
 };
 
-export const sendMobileMessageToNode = async (
-  payload: BleMobileMessage
-): Promise<BleMessageAck> => getBleClient().writeMessage(payload);
+export const sendMobileMessageToNode = async (payload: BleMobileMessage): Promise<BleMessageAck> =>
+  getBleClient().writeMessage(payload);
 
 export const notifyNodeInternetStatus = async (): Promise<void> => {
   const networkState = await Network.getNetworkStateAsync();

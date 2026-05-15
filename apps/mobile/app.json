@@ -53,9 +53,7 @@
         "@config-plugins/react-native-ble-plx",
         {
           "isBackgroundEnabled": true,
-          "modes": [
-            "central"
-          ],
+          "modes": ["central"],
           "bluetoothAlwaysPermission": "Aplikasi membutuhkan Bluetooth untuk terhubung ke LOOM Node."
         }
       ],

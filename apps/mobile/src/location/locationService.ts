@@ -1,4 +1,4 @@
-import * as ExpoLocation from 'expo-location';
+import * as ExpoLocation from "expo-location";
 
 export type MobileLocation = {
   lat: number;
@@ -14,7 +14,7 @@ export const toE6 = (value: number): number => Math.round(value * 1_000_000);
 export const getCurrentMobileLocation = async (): Promise<MobileLocation | null> => {
   try {
     const permission = await ExpoLocation.requestForegroundPermissionsAsync();
-    if (permission.status !== 'granted') return null;
+    if (permission.status !== "granted") return null;
 
     const location = await ExpoLocation.getCurrentPositionAsync({
       accuracy: ExpoLocation.Accuracy.Balanced
@@ -31,7 +31,7 @@ export const getCurrentMobileLocation = async (): Promise<MobileLocation | null>
       timestamp: location.timestamp
     };
   } catch (error) {
-    console.warn('[Location] Unable to read location', error);
+    console.warn("[Location] Unable to read location", error);
     return null;
   }
 };

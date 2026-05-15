@@ -1,8 +1,8 @@
-import type { BleMessageAck, BleMobileMessage, MessageValue } from '@loom/contracts';
-import { getDatabase } from './database';
+import type { BleMessageAck, BleMobileMessage, MessageValue } from "@loom/contracts";
+import { getDatabase } from "./database";
 
-export type SentMessageStatus = 'draft' | 'sent_to_node' | 'queued' | 'synced' | 'failed';
-export type SentMessageKind = 'safe' | 'emergency';
+export type SentMessageStatus = "draft" | "sent_to_node" | "queued" | "synced" | "failed";
+export type SentMessageKind = "safe" | "emergency";
 
 export type LocalSentMessage = {
   clientMessageId: string;
@@ -77,7 +77,7 @@ export const saveSentDraft = async (
     payload.message,
     rawText,
     payload.kind,
-    'draft',
+    "draft",
     payload.timestamp,
     payload.lat ?? null,
     payload.lon ?? null,
@@ -90,9 +90,9 @@ export const applyMessageAck = async (ack: BleMessageAck): Promise<void> => {
   const db = await getDatabase();
   const status: SentMessageStatus = ack.accepted
     ? ack.queued
-      ? 'queued'
-      : 'sent_to_node'
-    : 'failed';
+      ? "queued"
+      : "sent_to_node"
+    : "failed";
 
   await db.runAsync(
     `UPDATE sent_messages
@@ -114,7 +114,7 @@ export const markSentMessageFailed = async (
   const db = await getDatabase();
   await db.runAsync(
     `UPDATE sent_messages SET status = ?, failure_reason = ? WHERE client_message_id = ?`,
-    'failed',
+    "failed",
     reason,
     clientMessageId
   );
@@ -130,5 +130,5 @@ export const listSentMessages = async (): Promise<LocalSentMessage[]> => {
 
 export const clearSentMessages = async (): Promise<void> => {
   const db = await getDatabase();
-  await db.runAsync('DELETE FROM sent_messages');
+  await db.runAsync("DELETE FROM sent_messages");
 };

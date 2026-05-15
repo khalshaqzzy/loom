@@ -7,21 +7,21 @@ import type {
   BleNodeStatus,
   BleValidationChallenge,
   BleValidationResponse
-} from '@loom/contracts';
-import { loomBleProtocol } from '@loom/contracts';
-import type { BleClient, DiscoveredNode, Unsubscribe } from './client';
+} from "@loom/contracts";
+import { loomBleProtocol } from "@loom/contracts";
+import type { BleClient, DiscoveredNode, Unsubscribe } from "./client";
 
 const mockNodes: DiscoveredNode[] = [
-  { deviceId: 'mock-node-2', name: 'LOOM-Node-2', nodeId: 2, rssi: -55, distance: 'dekat' },
-  { deviceId: 'mock-node-7', name: 'LOOM-Node-7', nodeId: 7, rssi: -72, distance: 'sedang' },
-  { deviceId: 'mock-node-12', name: 'LOOM-Node-12', nodeId: 12, rssi: -88, distance: 'jauh' }
+  { deviceId: "mock-node-2", name: "LOOM-Node-2", nodeId: 2, rssi: -55, distance: "dekat" },
+  { deviceId: "mock-node-7", name: "LOOM-Node-7", nodeId: 7, rssi: -72, distance: "sedang" },
+  { deviceId: "mock-node-12", name: "LOOM-Node-12", nodeId: 12, rssi: -88, distance: "jauh" }
 ];
 
 export class MockBleClient implements BleClient {
   isMock = true;
   private connectedNode: DiscoveredNode | null = null;
   private validated = false;
-  private challenge = 'MOCK-1234';
+  private challenge = "MOCK-1234";
   private seqId = 1;
 
   async requestPermissions(): Promise<boolean> {
@@ -38,7 +38,7 @@ export class MockBleClient implements BleClient {
 
   async connect(deviceId: string): Promise<void> {
     const node = mockNodes.find((candidate) => candidate.deviceId === deviceId);
-    if (!node) throw new Error('Node tidak ditemukan.');
+    if (!node) throw new Error("Node tidak ditemukan.");
     this.connectedNode = node;
     this.validated = false;
     this.challenge = `MOCK-${node.nodeId ?? 0}-${Date.now().toString(36).slice(-4)}`;
@@ -50,12 +50,12 @@ export class MockBleClient implements BleClient {
   }
 
   async readNodeIdentity(): Promise<BleNodeIdentity> {
-    if (!this.connectedNode?.nodeId) throw new Error('Node belum terhubung.');
+    if (!this.connectedNode?.nodeId) throw new Error("Node belum terhubung.");
     return {
       protocol: loomBleProtocol,
       nodeId: this.connectedNode.nodeId,
-      firmwareVersion: 'mock-0.1.0',
-      capabilities: ['lora_v2', 'backlog_stream', 'internet_status']
+      firmwareVersion: "mock-0.1.0",
+      capabilities: ["lora_v2", "backlog_stream", "internet_status"]
     };
   }
 
@@ -67,7 +67,7 @@ export class MockBleClient implements BleClient {
     const expected = this.connectedNode?.nodeId;
     this.validated = expected === nodeId && challenge === this.challenge;
     if (!this.validated) {
-      return { validated: false, error: 'validation_failed' };
+      return { validated: false, error: "validation_failed" };
     }
 
     return { validated: true, nodeId };
@@ -78,11 +78,11 @@ export class MockBleClient implements BleClient {
       return {
         clientMessageId: payload.clientMessageId,
         accepted: false,
-        error: 'not_validated'
+        error: "not_validated"
       };
     }
 
-    const queued = payload.message !== 'fine' && this.seqId % 2 === 0;
+    const queued = payload.message !== "fine" && this.seqId % 2 === 0;
     return {
       clientMessageId: payload.clientMessageId,
       accepted: true,
@@ -98,7 +98,7 @@ export class MockBleClient implements BleClient {
 
     const timer = setTimeout(() => {
       onItem({
-        backlogId: '42:1',
+        backlogId: "42:1",
         senderNodeId: 42,
         seqId: 1,
         senderRangeToGateway: 2,
@@ -108,9 +108,9 @@ export class MockBleClient implements BleClient {
         lon: 106.816666,
         latE6: -6200000,
         lonE6: 106816666,
-        message: 'medical_help',
+        message: "medical_help",
         receivedByNodeId: this.connectedNode?.nodeId ?? 0,
-        source: 'lora_mesh'
+        source: "lora_mesh"
       });
     }, 1500);
 
@@ -118,12 +118,12 @@ export class MockBleClient implements BleClient {
   }
 
   async ackBacklog(ids: string[]): Promise<void> {
-    console.log('[BLE MOCK] backlog ack', ids);
+    console.log("[BLE MOCK] backlog ack", ids);
   }
 
   async writeInternetStatus(payload: BleInternetStatus): Promise<void> {
     if (!this.validated) return;
-    console.log('[BLE MOCK] internet status', payload.online);
+    console.log("[BLE MOCK] internet status", payload.online);
   }
 
   subscribeNodeStatus(onStatus: (status: BleNodeStatus) => void): Unsubscribe {

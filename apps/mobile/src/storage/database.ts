@@ -1,10 +1,10 @@
-import * as SQLite from 'expo-sqlite';
+import * as SQLite from "expo-sqlite";
 
 let databasePromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export const getDatabase = async (): Promise<SQLite.SQLiteDatabase> => {
   if (!databasePromise) {
-    databasePromise = SQLite.openDatabaseAsync('loom_mobile.db').then(async (db) => {
+    databasePromise = SQLite.openDatabaseAsync("loom_mobile.db").then(async (db) => {
       await db.execAsync(`
         PRAGMA journal_mode = WAL;
         CREATE TABLE IF NOT EXISTS schema_migrations (

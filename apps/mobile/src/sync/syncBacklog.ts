@@ -1,7 +1,7 @@
-import * as Network from 'expo-network';
-import type { BurstIngestMessage, BurstIngestRequest } from '@loom/contracts';
-import { burstIngestRequestSchema, MAX_INGEST_BATCH_SIZE } from '@loom/contracts';
-import { getOrCreateMobileInstallationId } from '../config/appConfig';
+import * as Network from "expo-network";
+import type { BurstIngestMessage, BurstIngestRequest } from "@loom/contracts";
+import { burstIngestRequestSchema, MAX_INGEST_BATCH_SIZE } from "@loom/contracts";
+import { getOrCreateMobileInstallationId } from "../config/appConfig";
 import {
   listBacklogItems,
   markBacklogFailed,
@@ -9,15 +9,15 @@ import {
   markBacklogSyncing,
   markBacklogSynced,
   type LocalBacklogItem
-} from '../storage/backlogItems';
-import { postBurstIngest } from './burstClient';
+} from "../storage/backlogItems";
+import { postBurstIngest } from "./burstClient";
 
 export type SyncResult = {
   attempted: number;
   accepted: number;
   duplicate: number;
   rejected: number;
-  skippedReason?: 'offline' | 'empty';
+  skippedReason?: "offline" | "empty";
 };
 
 const toBurstMessage = (item: LocalBacklogItem): BurstIngestMessage => ({
@@ -38,12 +38,12 @@ const toBurstMessage = (item: LocalBacklogItem): BurstIngestMessage => ({
 export const syncPendingBacklog = async (): Promise<SyncResult> => {
   const networkState = await Network.getNetworkStateAsync();
   if (!networkState.isConnected || !networkState.isInternetReachable) {
-    return { attempted: 0, accepted: 0, duplicate: 0, rejected: 0, skippedReason: 'offline' };
+    return { attempted: 0, accepted: 0, duplicate: 0, rejected: 0, skippedReason: "offline" };
   }
 
-  const items = (await listBacklogItems(['pending', 'failed'])).slice(0, MAX_INGEST_BATCH_SIZE);
+  const items = (await listBacklogItems(["pending", "failed"])).slice(0, MAX_INGEST_BATCH_SIZE);
   if (items.length === 0) {
-    return { attempted: 0, accepted: 0, duplicate: 0, rejected: 0, skippedReason: 'empty' };
+    return { attempted: 0, accepted: 0, duplicate: 0, rejected: 0, skippedReason: "empty" };
   }
 
   const ids = items.map((item) => item.backlogId);
@@ -52,7 +52,7 @@ export const syncPendingBacklog = async (): Promise<SyncResult> => {
   try {
     const mobileInstallationId = await getOrCreateMobileInstallationId();
     const request: BurstIngestRequest = burstIngestRequestSchema.parse({
-      uploaderType: 'mobile_app',
+      uploaderType: "mobile_app",
       mobileInstallationId,
       uploadedAt: new Date().toISOString(),
       messages: items.map(toBurstMessage)
@@ -81,7 +81,7 @@ export const syncPendingBacklog = async (): Promise<SyncResult> => {
       rejected: response.rejected.length
     };
   } catch (error) {
-    const reason = error instanceof Error ? error.message : 'burst_sync_failed';
+    const reason = error instanceof Error ? error.message : "burst_sync_failed";
     await markBacklogFailed(ids, reason);
     return { attempted: items.length, accepted: 0, duplicate: 0, rejected: 0 };
   }
