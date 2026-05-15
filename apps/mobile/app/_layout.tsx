@@ -5,8 +5,8 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Network from 'expo-network';
 
-import { getBacklog, clearBacklog, getOrCreateDeviceId } from '../src/storage/localStore';
-import { burstBacklogToBackend } from '../src/api/burst';
+import { getOrCreateDeviceId } from '../src/storage/localStore';
+import { syncPendingBacklog } from '../src/sync/syncBacklog';
 
 export const COLORS = {
   bg: '#F5F0E8',          // warm cream background
@@ -51,15 +51,8 @@ export default function RootLayout() {
       try {
         const net = await Network.getNetworkStateAsync();
         if (net.isInternetReachable) {
-          const backlog = await getBacklog();
-          if (backlog.length > 0) {
-            console.log('[Burst] Uploading', backlog.length, 'messages...');
-            const result = await burstBacklogToBackend(backlog, 0, deviceId || 'unknown');
-            if (result.success) {
-              await clearBacklog();
-              console.log('[Burst] Success, backlog cleared');
-            }
-          }
+          const result = await syncPendingBacklog();
+          if (result.attempted > 0) console.log('[Burst] Result', result);
         }
       } catch (err) {
         console.error('[Burst] Error:', err);
