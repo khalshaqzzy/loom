@@ -44,9 +44,15 @@ const BLE_LEGACY_STATUS_SETTLE_MS = 750;
 
 const encodeJson = (value: unknown): string => Buffer.from(JSON.stringify(value), 'utf8').toString('base64');
 
-const isLikelyBase64 = (value: string): boolean => {
-  const trimmed = value.trim();
-  return trimmed.length > 0 && trimmed.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(trimmed);
+const normalizeBase64 = (value: string): string | null => {
+  const compact = value.replace(/\s/g, '').replace(/-/g, '+').replace(/_/g, '/');
+  if (!compact || compact.length < 4 || !/^[A-Za-z0-9+/]+={0,2}$/.test(compact)) return null;
+
+  const withoutPadding = compact.replace(/=+$/, '');
+  const remainder = withoutPadding.length % 4;
+  if (remainder === 1) return null;
+
+  return withoutPadding.padEnd(withoutPadding.length + (4 - remainder) % 4, '=');
 };
 
 const sanitizeJsonText = (value: string): string => {
@@ -69,9 +75,14 @@ const sanitizeJsonText = (value: string): string => {
 
 const decodeBlePayload = (value: string): string[] => {
   const candidates = [value];
+  const normalizedBase64 = normalizeBase64(value);
 
-  if (isLikelyBase64(value)) {
-    candidates.unshift(Buffer.from(value, 'base64').toString('utf8'));
+  if (normalizedBase64) {
+    try {
+      candidates.unshift(Buffer.from(normalizedBase64, 'base64').toString('utf8'));
+    } catch {
+      // Keep the raw candidate below; diagnostics will show why parsing failed.
+    }
   }
 
   return [...new Set(candidates.map(sanitizeJsonText).filter(Boolean))];
@@ -89,6 +100,15 @@ const stringifyForLog = (value: unknown): string => {
 
 const truncateForLog = (value: string, maxLength = 500): string =>
   value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+
+const hexPreview = (value: string, maxBytes = 80): string => {
+  const normalizedBase64 = normalizeBase64(value);
+  const bytes = normalizedBase64
+    ? Buffer.from(normalizedBase64, 'base64')
+    : Buffer.from(value, 'utf8');
+
+  return bytes.subarray(0, maxBytes).toString('hex').replace(/(.{2})/g, '$1 ').trim();
+};
 
 const decodeJson = <T,>(value: string | null, parse: (input: unknown) => T): T => {
   if (!value) throw new Error('BLE payload kosong.');
@@ -255,18 +275,19 @@ export class NativeBleClient implements BleClient {
     const candidates = decodeBlePayload(value);
     const errors: string[] = [];
 
-    for (const candidate of candidates) {
+    debugLog.push(`${source}: raw=${rawPreview}`);
+    debugLog.push(`${source}: hex=${hexPreview(value)}`);
+
+    for (const [index, candidate] of candidates.entries()) {
       try {
         const parsed = JSON.parse(candidate);
-        debugLog.push(`${source}: raw=${rawPreview}`);
-        debugLog.push(`${source}: json=${truncateForLog(candidate)}`);
+        debugLog.push(`${source}: candidate${index}=${truncateForLog(candidate)}`);
         return parsed;
       } catch (error) {
-        errors.push(error instanceof Error ? error.message : String(error));
+        errors.push(`candidate${index}:${error instanceof Error ? error.message : String(error)}`);
       }
     }
 
-    debugLog.push(`${source}: raw=${rawPreview}`);
     debugLog.push(`${source}: parseErrors=${errors.join(' | ')}`);
     throw new Error(this.formatBleDiagnostic('Payload BLE bukan JSON valid.', debugLog));
   }
