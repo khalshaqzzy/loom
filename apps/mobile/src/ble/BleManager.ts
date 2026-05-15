@@ -26,21 +26,30 @@ export const getLoomBleManager = (): LoomBleManagerType => {
 
 export const connectAndValidateNode = async (node: DiscoveredNode) => {
   const client = getBleClient();
-  await client.connect(node.deviceId, node.rawDevice);
-  const identity = await client.readNodeIdentity();
-  const challenge = await client.readValidationChallenge();
-  const validation = await client.validateNode(identity.nodeId, challenge.challenge);
+  try {
+    await client.connect(node.deviceId, node.rawDevice);
+    const identity = await client.readNodeIdentity();
+    const challenge = await client.readValidationChallenge();
+    const validation = await client.validateNode(identity.nodeId, challenge.challenge);
 
-  if (!validation.validated) {
-    throw new Error('Validasi node gagal.');
+    if (!validation.validated) {
+      throw new Error('Validasi node gagal.');
+    }
+
+    return {
+      ...node,
+      nodeId: identity.nodeId,
+      name: node.name || `LOOM-Node-${identity.nodeId}`,
+      validated: true as const
+    };
+  } catch (error) {
+    await client.disconnect().catch(() => undefined);
+    const message = error instanceof Error ? error.message : '';
+    if (message.includes('JSON') || message.includes('BLE payload') || message.includes('Payload BLE')) {
+      throw new Error('Validasi node gagal. Respons BLE node tidak valid atau belum siap.');
+    }
+    throw error;
   }
-
-  return {
-    ...node,
-    nodeId: identity.nodeId,
-    name: node.name || `LOOM-Node-${identity.nodeId}`,
-    validated: true as const
-  };
 };
 
 export const sendMobileMessageToNode = async (

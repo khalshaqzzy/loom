@@ -38,11 +38,56 @@ type NativeDevice = {
   cancelConnection(): Promise<unknown>;
 };
 
+const BLE_RESPONSE_TIMEOUT_MS = 5000;
+
 const encodeJson = (value: unknown): string => Buffer.from(JSON.stringify(value), 'utf8').toString('base64');
+
+const isLikelyBase64 = (value: string): boolean => {
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length % 4 === 0 && /^[A-Za-z0-9+/]+={0,2}$/.test(trimmed);
+};
+
+const sanitizeJsonText = (value: string): string => {
+  const withoutBomOrNulls = value.replace(/^\uFEFF/, '').replace(/\0/g, '').trim();
+  const firstObject = withoutBomOrNulls.indexOf('{');
+  const lastObject = withoutBomOrNulls.lastIndexOf('}');
+  const firstArray = withoutBomOrNulls.indexOf('[');
+  const lastArray = withoutBomOrNulls.lastIndexOf(']');
+
+  if (firstObject !== -1 && lastObject > firstObject) {
+    return withoutBomOrNulls.slice(firstObject, lastObject + 1);
+  }
+
+  if (firstArray !== -1 && lastArray > firstArray) {
+    return withoutBomOrNulls.slice(firstArray, lastArray + 1);
+  }
+
+  return withoutBomOrNulls;
+};
+
+const decodeBlePayload = (value: string): string[] => {
+  const candidates = [value];
+
+  if (isLikelyBase64(value)) {
+    candidates.unshift(Buffer.from(value, 'base64').toString('utf8'));
+  }
+
+  return [...new Set(candidates.map(sanitizeJsonText).filter(Boolean))];
+};
 
 const decodeJson = <T,>(value: string | null, parse: (input: unknown) => T): T => {
   if (!value) throw new Error('BLE payload kosong.');
-  return parse(JSON.parse(Buffer.from(value, 'base64').toString('utf8')));
+
+  const errors: string[] = [];
+  for (const candidate of decodeBlePayload(value)) {
+    try {
+      return parse(JSON.parse(candidate));
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  throw new Error(`Payload BLE bukan JSON valid. ${errors[0] ?? 'Format tidak dikenali.'}`);
 };
 
 export class NativeBleClient implements BleClient {
@@ -115,15 +160,20 @@ export class NativeBleClient implements BleClient {
   }
 
   async validateNode(nodeId: number, challenge: string): Promise<BleValidationResponse> {
-    await this.write(loomBleUuids.validation, { nodeId, challenge });
-    const value = await this.read(loomBleUuids.validation);
-    return decodeJson(value, bleValidationResponseSchema.parse);
+    return this.writeAndWaitForJsonNotification(
+      loomBleUuids.validation,
+      { nodeId, challenge },
+      bleValidationResponseSchema.parse
+    );
   }
 
   async writeMessage(payload: BleMobileMessage): Promise<BleMessageAck> {
-    await this.write(loomBleUuids.messageWrite, payload);
-    const value = await this.read(loomBleUuids.messageAck);
-    return decodeJson(value, bleMessageAckSchema.parse);
+    return this.writeAndWaitForJsonNotification(
+      loomBleUuids.messageAck,
+      payload,
+      bleMessageAckSchema.parse,
+      loomBleUuids.messageWrite
+    );
   }
 
   subscribeBacklog(onItem: (item: BleBacklogItem) => void): Unsubscribe {
@@ -133,7 +183,11 @@ export class NativeBleClient implements BleClient {
       loomBleUuids.backlogStream,
       (_error, characteristic) => {
         if (!characteristic?.value) return;
-        onItem(decodeJson(characteristic.value, bleBacklogItemSchema.parse));
+        try {
+          onItem(decodeJson(characteristic.value, bleBacklogItemSchema.parse));
+        } catch (error) {
+          console.warn('[BLE] Backlog payload ignored.', error);
+        }
       }
     );
     return () => subscription.remove();
@@ -154,7 +208,11 @@ export class NativeBleClient implements BleClient {
       loomBleUuids.nodeStatus,
       (_error, characteristic) => {
         if (!characteristic?.value) return;
-        onStatus(decodeJson(characteristic.value, bleNodeStatusSchema.parse));
+        try {
+          onStatus(decodeJson(characteristic.value, bleNodeStatusSchema.parse));
+        } catch (error) {
+          console.warn('[BLE] Node status payload ignored.', error);
+        }
       }
     );
     return () => subscription.remove();
@@ -173,5 +231,71 @@ export class NativeBleClient implements BleClient {
       characteristicUuid,
       encodeJson(value)
     );
+  }
+
+  private async writeAndWaitForJsonNotification<T>(
+    notificationCharacteristicUuid: string,
+    value: unknown,
+    parse: (input: unknown) => T,
+    writeCharacteristicUuid = notificationCharacteristicUuid
+  ): Promise<T> {
+    if (!this.device) throw new Error('BLE device belum terhubung.');
+
+    let settled = false;
+    let lastDecodeError: Error | null = null;
+
+    return new Promise<T>((resolve, reject) => {
+      const timeout = setTimeout(async () => {
+        if (settled) return;
+        settled = true;
+        subscription.remove();
+
+        try {
+          const fallbackValue = await this.read(notificationCharacteristicUuid);
+          resolve(decodeJson(fallbackValue, parse));
+        } catch (error) {
+          reject(
+            lastDecodeError ??
+              (error instanceof Error ? error : new Error('Respons BLE tidak diterima dari node.'))
+          );
+        }
+      }, BLE_RESPONSE_TIMEOUT_MS);
+
+      const subscription = this.device!.monitorCharacteristicForService(
+        loomBleUuids.service,
+        notificationCharacteristicUuid,
+        (error, characteristic) => {
+          if (settled) return;
+
+          if (error) {
+            settled = true;
+            clearTimeout(timeout);
+            subscription.remove();
+            reject(error instanceof Error ? error : new Error('Gagal menerima notifikasi BLE.'));
+            return;
+          }
+
+          if (!characteristic?.value) return;
+
+          try {
+            const parsed = decodeJson(characteristic.value, parse);
+            settled = true;
+            clearTimeout(timeout);
+            subscription.remove();
+            resolve(parsed);
+          } catch (decodeError) {
+            lastDecodeError = decodeError instanceof Error ? decodeError : new Error(String(decodeError));
+          }
+        }
+      );
+
+      this.write(writeCharacteristicUuid, value).catch(error => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timeout);
+        subscription.remove();
+        reject(error instanceof Error ? error : new Error('Gagal menulis payload BLE.'));
+      });
+    });
   }
 }

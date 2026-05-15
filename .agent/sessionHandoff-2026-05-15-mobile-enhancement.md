@@ -6,7 +6,7 @@
 
 ## Branch
 
-`feat/mobile-enhancement-final-contract`
+`mobile-esp-integration`
 
 ## Scope Completed
 
@@ -95,6 +95,17 @@ The mobile BLE abstraction supports:
 - Subscribe node status.
 
 Message writes, backlog subscription, and internet status writes are gated by successful validation.
+
+### BLE Hardening Follow-Up
+
+After firmware integration testing exposed node validation failures with JSON parse errors, mobile native BLE handling was hardened:
+
+- Validation and message ack now use notify-first request/response handling with a bounded read fallback.
+- BLE JSON decoding now accepts base64 or plain UTF-8 JSON and strips BOM/null/non-JSON padding before schema validation.
+- Malformed backlog and node-status notifications are ignored and logged instead of crashing callbacks.
+- Failed validation setup disconnects the active BLE connection and surfaces a user-safe validation error.
+
+This is recorded in `docs/adr/0016-mobile-ble-notify-hardening.md`.
 
 ### SQLite Storage
 
@@ -222,6 +233,8 @@ npm run prepare:shared
 npm run typecheck
 npm run typecheck
 npx expo config --type public
+npm run typecheck
+npx expo config --type public
 ```
 
 Command context:
@@ -230,6 +243,7 @@ Command context:
 - The `npm run build` and `npm run typecheck` pair was run in `packages/decision-tree`.
 - `npm run prepare:shared`, `npm run typecheck`, and `npx expo config --type public` were run in `apps/mobile`.
 - Root `npm run typecheck` also passed and still does not include mobile.
+- The final two commands were rerun in `apps/mobile` after BLE notify hardening.
 
 Mobile test-file check:
 
@@ -288,6 +302,7 @@ Primary changed areas:
 
 - `.agent/adr-mobile-enhancement-final-ble-contract.md`
 - `.agent/sessionHandoff-2026-05-15-mobile-enhancement.md`
+- `docs/adr/0016-mobile-ble-notify-hardening.md`
 - `packages/contracts/src/schemas/ble.ts`
 - `packages/contracts/src/schemas/index.ts`
 - `packages/decision-tree`
