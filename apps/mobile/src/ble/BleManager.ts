@@ -12,9 +12,9 @@ import * as Network from 'expo-network';
 import { Buffer } from 'buffer';
 
 // UUID sesuai firmware ESP32 LOOM
-export const LOOM_SERVICE_UUID = 'YOUR_SERVICE_UUID';
-export const LOOM_REPORT_CHAR_UUID = 'YOUR_REPORT_CHAR_UUID';
-export const LOOM_INTERNET_STATUS_CHAR_UUID = 'YOUR_INTERNET_STATUS_CHAR_UUID';
+export const LOOM_SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+export const LOOM_REPORT_CHAR_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+export const LOOM_INTERNET_STATUS_CHAR_UUID = 'cba1d466-344c-4be3-ab3f-189f80dd7518';
 
 export type LoomBleManagerType = {
   isReady: boolean;
