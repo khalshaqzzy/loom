@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { safeNormalizeMeshCoordinates } from "../coordinates";
 import { messageSourceSchema, messageValueSchema } from "../enums";
 import {
   isoDateTimeSchema,
@@ -52,17 +53,28 @@ export const bleValidationResponseSchema = z.discriminatedUnion("validated", [
   })
 ]);
 
-export const bleMobileMessageSchema = z.object({
-  protocol: z.literal(loomBleProtocol),
-  clientMessageId: z.string().trim().min(1).max(80),
-  message: messageValueSchema,
-  timestamp: isoDateTimeSchema,
-  lat: latitudeSchema.optional(),
-  lon: longitudeSchema.optional(),
-  latE6: latE6Schema.optional(),
-  lonE6: lonE6Schema.optional(),
-  kind: z.enum(["safe", "emergency"])
-});
+export const bleMobileMessageSchema = z
+  .object({
+    protocol: z.literal(loomBleProtocol),
+    clientMessageId: z.string().trim().min(1).max(80),
+    message: messageValueSchema,
+    timestamp: isoDateTimeSchema,
+    lat: latitudeSchema.optional(),
+    lon: longitudeSchema.optional(),
+    latE6: latE6Schema.optional(),
+    lonE6: lonE6Schema.optional(),
+    kind: z.enum(["safe", "emergency"])
+  })
+  .superRefine((message, context) => {
+    const normalized = safeNormalizeMeshCoordinates(message);
+    if (!normalized.success) {
+      context.addIssue({
+        code: "custom",
+        path: ["latE6"],
+        message: normalized.error
+      });
+    }
+  });
 
 export const bleMessageAckSchema = z.object({
   clientMessageId: z.string().trim().min(1).max(80),
@@ -74,21 +86,32 @@ export const bleMessageAckSchema = z.object({
   error: z.string().trim().min(1).max(120).optional()
 });
 
-export const bleBacklogItemSchema = z.object({
-  backlogId: z.string().trim().min(3).max(80),
-  senderNodeId: nodeIdNumericSchema,
-  seqId: seqIdSchema,
-  senderRangeToGateway: routeRangeSchema,
-  lastForwarderRangeToGateway: routeRangeSchema,
-  timestamp: isoDateTimeSchema,
-  lat: latitudeSchema.optional().nullable(),
-  lon: longitudeSchema.optional().nullable(),
-  latE6: latE6Schema.optional().nullable(),
-  lonE6: lonE6Schema.optional().nullable(),
-  message: messageValueSchema,
-  receivedByNodeId: nodeIdNumericSchema.optional().nullable(),
-  source: messageSourceSchema.default("lora_mesh")
-});
+export const bleBacklogItemSchema = z
+  .object({
+    backlogId: z.string().trim().min(3).max(80),
+    senderNodeId: nodeIdNumericSchema,
+    seqId: seqIdSchema,
+    senderRangeToGateway: routeRangeSchema,
+    lastForwarderRangeToGateway: routeRangeSchema,
+    timestamp: isoDateTimeSchema,
+    lat: latitudeSchema.optional().nullable(),
+    lon: longitudeSchema.optional().nullable(),
+    latE6: latE6Schema.optional().nullable(),
+    lonE6: lonE6Schema.optional().nullable(),
+    message: messageValueSchema,
+    receivedByNodeId: nodeIdNumericSchema.optional().nullable(),
+    source: messageSourceSchema.default("lora_mesh")
+  })
+  .superRefine((message, context) => {
+    const normalized = safeNormalizeMeshCoordinates(message);
+    if (!normalized.success) {
+      context.addIssue({
+        code: "custom",
+        path: ["latE6"],
+        message: normalized.error
+      });
+    }
+  });
 
 export const bleBacklogAckSchema = z.object({
   backlogIds: z.array(z.string().trim().min(3).max(80)).min(1).max(100),

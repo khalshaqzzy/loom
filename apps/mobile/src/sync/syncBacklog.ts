@@ -1,6 +1,10 @@
 import * as Network from "expo-network";
 import type { BurstIngestMessage, BurstIngestRequest } from "@loom/contracts";
-import { burstIngestRequestSchema, MAX_INGEST_BATCH_SIZE } from "@loom/contracts";
+import {
+  burstIngestRequestSchema,
+  MAX_INGEST_BATCH_SIZE,
+  normalizeMeshCoordinates
+} from "@loom/contracts";
 import { getOrCreateMobileInstallationId } from "../config/appConfig";
 import {
   listBacklogItems,
@@ -20,20 +24,23 @@ export type SyncResult = {
   skippedReason?: "offline" | "empty";
 };
 
-const toBurstMessage = (item: LocalBacklogItem): BurstIngestMessage => ({
-  senderNodeId: item.senderNodeId,
-  seqId: item.seqId,
-  senderRangeToGateway: item.senderRangeToGateway,
-  lastForwarderRangeToGateway: item.lastForwarderRangeToGateway,
-  timestamp: item.timestamp,
-  lat: item.lat ?? null,
-  lon: item.lon ?? null,
-  latE6: item.latE6 ?? null,
-  lonE6: item.lonE6 ?? null,
-  message: item.message,
-  receivedByNodeId: item.receivedByNodeId ?? null,
-  source: item.source
-});
+const toBurstMessage = (item: LocalBacklogItem): BurstIngestMessage => {
+  const coordinates = normalizeMeshCoordinates(item);
+  return {
+    senderNodeId: item.senderNodeId,
+    seqId: item.seqId,
+    senderRangeToGateway: item.senderRangeToGateway,
+    lastForwarderRangeToGateway: item.lastForwarderRangeToGateway,
+    timestamp: item.timestamp,
+    lat: coordinates.lat,
+    lon: coordinates.lon,
+    latE6: coordinates.latE6,
+    lonE6: coordinates.lonE6,
+    message: item.message,
+    receivedByNodeId: item.receivedByNodeId ?? null,
+    source: item.source
+  };
+};
 
 export const syncPendingBacklog = async (): Promise<SyncResult> => {
   const networkState = await Network.getNetworkStateAsync();

@@ -1,5 +1,5 @@
-import type { BleBacklogItem, BurstIngestMessage } from "@loom/contracts";
-import { bleBacklogItemSchema } from "@loom/contracts";
+import type { BleBacklogItem, BleMessageAck, BleMobileMessage, BurstIngestMessage } from "@loom/contracts";
+import { bleBacklogItemSchema, normalizeMeshCoordinates } from "@loom/contracts";
 import { getDatabase } from "./database";
 
 export type BacklogSyncStatus = "pending" | "syncing" | "synced" | "rejected" | "failed";
@@ -50,17 +50,14 @@ const toBacklogItem = (row: BacklogRow): LocalBacklogItem => ({
 });
 
 const normalizeLocation = (item: BleBacklogItem): BleBacklogItem => {
-  if ((item.latE6 ?? 0) === 0 && (item.lonE6 ?? 0) === 0) {
-    return {
-      ...item,
-      lat: null,
-      lon: null,
-      latE6: null,
-      lonE6: null
-    };
-  }
-
-  return item;
+  const coordinates = normalizeMeshCoordinates(item);
+  return {
+    ...item,
+    lat: coordinates.lat,
+    lon: coordinates.lon,
+    latE6: coordinates.latE6,
+    lonE6: coordinates.lonE6
+  };
 };
 
 export const upsertBacklogItem = async (input: BleBacklogItem): Promise<LocalBacklogItem> => {
@@ -112,6 +109,30 @@ export const upsertBacklogItem = async (input: BleBacklogItem): Promise<LocalBac
     syncAttempts: 0,
     lastSyncError: null
   };
+};
+
+export const upsertAcceptedSentMessageForSync = async (
+  payload: BleMobileMessage,
+  connectedNodeId: number,
+  ack: BleMessageAck
+): Promise<LocalBacklogItem | null> => {
+  if (!ack.accepted || ack.senderNodeId === undefined || ack.seqId === undefined) return null;
+
+  return upsertBacklogItem({
+    backlogId: `${ack.senderNodeId}:${ack.seqId}`,
+    senderNodeId: ack.senderNodeId,
+    seqId: ack.seqId,
+    senderRangeToGateway: ack.rangeToGateway ?? 65535,
+    lastForwarderRangeToGateway: ack.rangeToGateway ?? 65535,
+    timestamp: payload.timestamp,
+    lat: payload.lat ?? null,
+    lon: payload.lon ?? null,
+    latE6: payload.latE6 ?? null,
+    lonE6: payload.lonE6 ?? null,
+    message: payload.message,
+    receivedByNodeId: connectedNodeId,
+    source: "mobile_app"
+  });
 };
 
 export const listBacklogItems = async (

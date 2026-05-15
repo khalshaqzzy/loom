@@ -29,7 +29,7 @@ import {
   buildEmergencyMobileMessage,
   buildSafeMobileMessage
 } from "../src/messages/buildMobileMessage";
-import { upsertBacklogItem } from "../src/storage/backlogItems";
+import { upsertAcceptedSentMessageForSync, upsertBacklogItem } from "../src/storage/backlogItems";
 import { applyMessageAck, markSentMessageFailed, saveSentDraft } from "../src/storage/sentMessages";
 import { formatCoords, getCurrentLocation } from "../src/utils/location";
 
@@ -159,6 +159,8 @@ export default function LaporanScreen() {
           payloadResult.payload.clientMessageId,
           ack.error || "node_rejected"
         );
+      } else {
+        await upsertAcceptedSentMessageForSync(payloadResult.payload, selectedNode.nodeId, ack);
       }
 
       setSelectedStatus(null);

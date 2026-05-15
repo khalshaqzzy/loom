@@ -2,6 +2,7 @@ import {
   burstIngestMessageSchema,
   ingestAcceptedItemSchema,
   MAX_INGEST_BATCH_SIZE,
+  normalizeMeshCoordinates,
   uploaderTypeSchema
 } from "@loom/contracts";
 import type { AppContext } from "../../http/appContext";
@@ -56,6 +57,7 @@ export const createIngestRouter = (context: AppContext): Router => {
         }
 
         const message = parsedMessage.data;
+        const coordinates = normalizeMeshCoordinates(message);
         const registeredNode = await context.mongo.collections.registeredNodes.findOne({
           nodeIdNumeric: message.senderNodeId
         });
@@ -81,10 +83,10 @@ export const createIngestRouter = (context: AppContext): Router => {
             senderRangeToGateway: message.senderRangeToGateway,
             lastForwarderRangeToGateway: message.lastForwarderRangeToGateway,
             timestamp: new Date(message.timestamp),
-            lat: message.lat ?? null,
-            lon: message.lon ?? null,
-            latE6: message.latE6 ?? null,
-            lonE6: message.lonE6 ?? null,
+            lat: coordinates.lat,
+            lon: coordinates.lon,
+            latE6: coordinates.latE6,
+            lonE6: coordinates.lonE6,
             message: message.message,
             receivedByNodeId: message.receivedByNodeId ?? null,
             receivedByUploaderId: uploaderId,
@@ -93,7 +95,7 @@ export const createIngestRouter = (context: AppContext): Router => {
             receivedByBackendAt
           });
           accepted.push({ senderNodeId: message.senderNodeId, seqId: message.seqId, dedupKey });
-          await updateNodeLatestMetadata(context, message, receivedByBackendAt);
+          await updateNodeLatestMetadata(context, message, coordinates, receivedByBackendAt);
         } catch (error) {
           if (isDuplicateKeyError(error)) {
             duplicate.push({ senderNodeId: message.senderNodeId, seqId: message.seqId, dedupKey });
@@ -138,14 +140,15 @@ type ParsedIngestMessage = z.infer<typeof burstIngestMessageSchema>;
 const updateNodeLatestMetadata = async (
   context: AppContext,
   message: ParsedIngestMessage,
+  coordinates: ReturnType<typeof normalizeMeshCoordinates>,
   receivedByBackendAt: Date
 ): Promise<void> => {
   await context.mongo.collections.registeredNodes.updateOne(
     { nodeIdNumeric: message.senderNodeId },
     {
       $set: {
-        lastKnownLat: message.lat ?? null,
-        lastKnownLon: message.lon ?? null,
+        lastKnownLat: coordinates.lat,
+        lastKnownLon: coordinates.lon,
         lastSeenAt: receivedByBackendAt,
         lastRangeToGateway: message.senderRangeToGateway,
         lastMessageAt: new Date(message.timestamp),
