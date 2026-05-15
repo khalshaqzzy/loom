@@ -58,8 +58,8 @@ class IdentityCallbacks : public NimBLECharacteristicCallbacks {
   explicit IdentityCallbacks(BleBridge* bridge) : bridge_(bridge) {}
   void onRead(NimBLECharacteristic* pChar) override {
     String out = bridge_->identityJson();
-    pChar->setValue(out.c_str());
-    Serial.printf("[BLE TX] Identity read: %s\n", out.c_str());
+    pChar->setValue((const uint8_t*)out.c_str(), out.length());
+    Serial.printf("[BLE TX] Identity read: %s (len=%u)\n", out.c_str(), out.length());
   }
  private:
   BleBridge* bridge_;
@@ -105,7 +105,8 @@ void BleBridge::resetChallenge() {
   }
   challenge_[12] = '\0';
   if (validationChar_ != nullptr) {
-    validationChar_->setValue(challengeJson().c_str());
+    String challenge = challengeJson();
+    validationChar_->setValue((const uint8_t*)challenge.c_str(), challenge.length());
   }
   Serial.printf("[BLE] Validation challenge refreshed: %s\n", challenge_);
 }
@@ -139,23 +140,21 @@ void BleBridge::begin(uint32_t nodeId, BleBridgeCallbacks* callbacks) {
   resetChallenge();
 
   NimBLEDevice::init(BLE_DEVICE_NAME);
-  Serial.printf("[BLE] Init device=%s service=%s\n", BLE_DEVICE_NAME, LOOM_SERVICE_UUID);
+  NimBLEDevice::deleteAllBonds();
+  Serial.printf("[BLE] Init device=%s service=%s (bonds cleared)\n", BLE_DEVICE_NAME, LOOM_SERVICE_UUID);
   NimBLEServer* server = NimBLEDevice::createServer();
   NimBLEService* service = server->createService(LOOM_SERVICE_UUID);
 
   identityChar_ = service->createCharacteristic(LOOM_IDENTITY_CHAR_UUID, NIMBLE_PROPERTY::READ);
   identityChar_->setCallbacks(new IdentityCallbacks(this));
-  String identity = identityJson();
-  identityChar_->setValue(identity.c_str());
-  Serial.printf("[BLE] Identity ready uuid=%s node=%lu\n", LOOM_IDENTITY_CHAR_UUID, nodeId_);
+  Serial.printf("[BLE] Identity characteristic created uuid=%s\n", LOOM_IDENTITY_CHAR_UUID);
 
   validationChar_ = service->createCharacteristic(
     LOOM_VALIDATION_CHAR_UUID,
     NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY
   );
   validationChar_->setCallbacks(new ValidationCallbacks(this));
-  validationChar_->setValue(challengeJson().c_str());
-  Serial.printf("[BLE] Validation ready uuid=%s\n", LOOM_VALIDATION_CHAR_UUID);
+  Serial.printf("[BLE] Validation characteristic created uuid=%s\n", LOOM_VALIDATION_CHAR_UUID);
 
   NimBLECharacteristic* messageChar = service->createCharacteristic(
     LOOM_MESSAGE_CHAR_UUID,
@@ -166,7 +165,6 @@ void BleBridge::begin(uint32_t nodeId, BleBridgeCallbacks* callbacks) {
 
   messageAckChar_ = service->createCharacteristic(LOOM_MESSAGE_ACK_CHAR_UUID, NIMBLE_PROPERTY::NOTIFY);
   backlogChar_ = service->createCharacteristic(LOOM_BACKLOG_STREAM_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
-  backlogChar_->setValue("{}");
   Serial.printf("[BLE] Message ack notify uuid=%s\n", LOOM_MESSAGE_ACK_CHAR_UUID);
   Serial.printf("[BLE] Backlog stream ready uuid=%s\n", LOOM_BACKLOG_STREAM_CHAR_UUID);
 
@@ -183,7 +181,29 @@ void BleBridge::begin(uint32_t nodeId, BleBridgeCallbacks* callbacks) {
 
   nodeStatusChar_ = service->createCharacteristic(LOOM_NODE_STATUS_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
   Serial.printf("[BLE] Node status ready uuid=%s\n", LOOM_NODE_STATUS_CHAR_UUID);
+
   service->start();
+  Serial.println("[BLE] Service started");
+
+  String identity = identityJson();
+  identityChar_->setValue((const uint8_t*)identity.c_str(), identity.length());
+  Serial.printf("[BLE] Identity set uuid=%s node=%lu value=%s\n", LOOM_IDENTITY_CHAR_UUID, nodeId_, identity.c_str());
+
+  String verifyIdentity = String(identityChar_->getValue().c_str());
+  if (verifyIdentity.length() < 10 || verifyIdentity.indexOf('{') == -1) {
+    Serial.printf("[BLE WARN] Identity value not set correctly (len=%u). Retrying with explicit bytes.\n", verifyIdentity.length());
+    identityChar_->setValue((const uint8_t*)identity.c_str(), identity.length());
+    String verify2 = String(identityChar_->getValue().c_str());
+    Serial.printf("[BLE] Identity retry result len=%u content=%s\n", verify2.length(), verify2.c_str());
+  } else {
+    Serial.printf("[BLE] Identity verified len=%u\n", verifyIdentity.length());
+  }
+
+  validationChar_->setValue((const uint8_t*)challengeJson().c_str(), challengeJson().length());
+  Serial.printf("[BLE] Validation challenge set uuid=%s\n", LOOM_VALIDATION_CHAR_UUID);
+
+  backlogChar_->setValue((const uint8_t*)"{}", 2);
+  Serial.printf("[BLE] Backlog initial value set\n");
 
   NimBLEAdvertising* advertising = NimBLEDevice::getAdvertising();
   advertising->addServiceUUID(LOOM_SERVICE_UUID);
@@ -213,7 +233,7 @@ void BleBridge::handleValidationWrite(const String& json) {
   if (!ok) response["error"] = "validation_failed";
   String out;
   serializeJson(response, out);
-  validationChar_->setValue(out.c_str());
+  validationChar_->setValue((const uint8_t*)out.c_str(), out.length());
   validationChar_->notify();
   Serial.printf("[BLE TX] Validation response: %s\n", out.c_str());
 }
@@ -289,7 +309,7 @@ void BleBridge::notifyMessageAck(const char* clientMessageId, bool accepted, con
   }
   String out;
   serializeJson(doc, out);
-  messageAckChar_->setValue(out.c_str());
+  messageAckChar_->setValue((const uint8_t*)out.c_str(), out.length());
   messageAckChar_->notify();
   Serial.printf("[BLE TX] Message ack: %s\n", out.c_str());
 }
@@ -357,7 +377,7 @@ void BleBridge::notifyBacklogItem(const BacklogItem& item) {
   doc["source"] = "lora_mesh";
   String out;
   serializeJson(doc, out);
-  backlogChar_->setValue(out.c_str());
+  backlogChar_->setValue((const uint8_t*)out.c_str(), out.length());
   backlogChar_->notify();
   Serial.printf("[BLE TX] Backlog item id=%s bytes=%u\n", backlogId.c_str(), out.length());
 }
@@ -387,7 +407,7 @@ void BleBridge::notifyNodeStatus(uint16_t rangeToGateway, size_t neighborCount, 
   doc["internetPathActive"] = internetPathActive;
   String out;
   serializeJson(doc, out);
-  nodeStatusChar_->setValue(out.c_str());
+  nodeStatusChar_->setValue((const uint8_t*)out.c_str(), out.length());
   nodeStatusChar_->notify();
   Serial.printf("[BLE TX] Node status range=%u neighbors=%u pending=%u backlog=%u internet=%s validated=%s\n",
                 rangeToGateway,

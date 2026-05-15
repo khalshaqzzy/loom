@@ -293,6 +293,17 @@ export class NativeBleClient implements BleClient {
       const message = error instanceof Error ? error.message : String(error);
       if (!message.includes("4-byte binary")) throw error;
 
+      debugLog.push("identity:detected 4-byte binary - attempting GATT cache refresh");
+
+      try {
+        const refreshedIdentity = await this.retryIdentityWithGattRefresh(debugLog);
+        if (refreshedIdentity) return refreshedIdentity;
+      } catch (refreshError) {
+        debugLog.push(
+          `identity:GATT refresh failed=${refreshError instanceof Error ? refreshError.message : String(refreshError)}`
+        );
+      }
+
       debugLog.push("identity:fallback using nodeStatus because identity stayed binary");
 
       try {
@@ -316,6 +327,50 @@ export class NativeBleClient implements BleClient {
           )
         );
       }
+    }
+  }
+
+  private async retryIdentityWithGattRefresh(debugLog: string[]): Promise<BleNodeIdentity | null> {
+    if (!this.device) return null;
+
+    const deviceId = this.device.id;
+    debugLog.push(`identity:gatt-refresh disconnecting device=${deviceId}`);
+
+    try {
+      await this.device.cancelConnection().catch(() => undefined);
+    } catch {
+      // Ignore disconnect errors
+    }
+    this.device = null;
+    await wait(600);
+
+    debugLog.push("identity:gatt-refresh reconnecting");
+
+    const connectionOptions = {
+      refreshGatt: Platform.OS === "android" ? "OnConnected" : undefined,
+      requestMTU: Platform.OS === "android" ? 256 : undefined,
+      timeout: 10000
+    };
+
+    const reconnected = await this.manager.connectToDevice(deviceId, connectionOptions);
+    this.device = await reconnected.discoverAllServicesAndCharacteristics();
+    debugLog.push(`identity:gatt-refresh reconnected id=${this.device.id}`);
+
+    try {
+      const identity = await this.readJsonWithRetries(
+        loomBleUuids.nodeIdentity,
+        bleNodeIdentitySchema.parse,
+        "identity:retry-after-gatt-refresh",
+        debugLog,
+        2
+      );
+      debugLog.push(`identity:gatt-refresh success nodeId=${identity.nodeId}`);
+      return identity;
+    } catch (retryError) {
+      debugLog.push(
+        `identity:gatt-refresh retry failed=${retryError instanceof Error ? retryError.message : String(retryError)}`
+      );
+      return null;
     }
   }
 
