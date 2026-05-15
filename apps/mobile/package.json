@@ -1,16 +1,24 @@
 {
-  "name": "mobile",
+  "name": "@loom/mobile",
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
+    "prepare:shared": "npm --prefix ../../packages/contracts run build && npm --prefix ../../packages/decision-tree run build",
+    "prestart": "npm run prepare:shared",
     "start": "expo start",
+    "preandroid": "npm run prepare:shared",
     "android": "expo run:android",
+    "preios": "npm run prepare:shared",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "preweb": "npm run prepare:shared",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@config-plugins/react-native-ble-plx": "^7.0.0",
     "@expo/vector-icons": "^15.1.1",
+    "@loom/contracts": "file:../../packages/contracts",
+    "@loom/decision-tree": "file:../../packages/decision-tree",
     "@react-native-async-storage/async-storage": "2.2.0",
     "buffer": "^6.0.3",
     "expo": "~54.0.33",

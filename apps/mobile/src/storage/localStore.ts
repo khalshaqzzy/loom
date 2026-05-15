@@ -1,23 +1,29 @@
-/**
- * localStore.ts
- * Penyimpanan lokal untuk backlog BLE dan riwayat laporan.
- */
-
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { BurstMessage } from '../api/burst';
+import type { BleBacklogItem, MessageValue } from '@loom/contracts';
+import {
+  clearBacklogItems,
+  countBacklogItems,
+  listBacklogItems,
+  upsertBacklogItem
+} from './backlogItems';
+import {
+  clearSentMessages,
+  listSentMessages,
+  type LocalSentMessage,
+  type SentMessageStatus
+} from './sentMessages';
+import { getOrCreateMobileInstallationId } from '../config/appConfig';
 
-const BACKLOG_KEY = '@loom_backlog';
-const REPORTS_KEY = '@loom_reports';
-const NODE_KEY = '@loom_selected_node';
-const DEVICE_ID_KEY = '@loom_device_id';
+const LEGACY_NODE_KEY = '@loom_selected_node';
 
-export type ReportStatus = 'diterima_node' | 'terkirim' | 'gagal';
-export type ReportType = 'aman' | 'butuh_bantuan' | 'darurat_kritis';
+export type ReportStatus = SentMessageStatus;
+export type ReportType = 'safe' | 'emergency';
 
 export type LocalReport = {
   id: string;
   type: ReportType;
-  message: string;
+  message: MessageValue;
+  rawText?: string | null;
   timestamp: number;
   status: ReportStatus;
   nodeId: string;
@@ -25,68 +31,66 @@ export type LocalReport = {
   location?: { lat: number; lon: number } | null;
 };
 
-// ===== BACKLOG (pesan dari ESP32 yang belum ter-burst ke backend) =====
+export const saveToBacklog = async (message: BleBacklogItem): Promise<void> => {
+  await upsertBacklogItem(message);
+};
 
-export async function saveToBacklog(message: BurstMessage): Promise<void> {
-  const existing = await getBacklog();
-  existing.push(message);
-  await AsyncStorage.setItem(BACKLOG_KEY, JSON.stringify(existing));
-}
+export const getBacklog = async () => listBacklogItems();
 
-export async function getBacklog(): Promise<BurstMessage[]> {
-  const data = await AsyncStorage.getItem(BACKLOG_KEY);
-  return data ? JSON.parse(data) : [];
-}
+export const getBacklogCount = async (): Promise<number> => countBacklogItems();
 
-export async function clearBacklog(): Promise<void> {
-  await AsyncStorage.removeItem(BACKLOG_KEY);
-}
+export const clearBacklog = async (): Promise<void> => {
+  await clearBacklogItems();
+};
 
-// ===== RIWAYAT LAPORAN =====
+export const saveReport = async (): Promise<void> => {
+  // Sent messages are created through sentMessages.saveSentDraft so firmware ack can update them.
+};
 
-export async function saveReport(report: LocalReport): Promise<void> {
-  const existing = await getReports();
-  existing.unshift(report); // terbaru di atas
-  // Simpan max 50 laporan lokal
-  const trimmed = existing.slice(0, 50);
-  await AsyncStorage.setItem(REPORTS_KEY, JSON.stringify(trimmed));
-}
+export const getReports = async (): Promise<LocalReport[]> => {
+  const messages = await listSentMessages();
+  return messages.map(toLocalReport);
+};
 
-export async function getReports(): Promise<LocalReport[]> {
-  const data = await AsyncStorage.getItem(REPORTS_KEY);
-  return data ? JSON.parse(data) : [];
-}
+export const updateReportStatus = async (): Promise<void> => {
+  // Retained for old call sites; new status transitions happen from BLE ack/sync services.
+};
 
-export async function updateReportStatus(id: string, status: ReportStatus): Promise<void> {
+export const retryReport = async (id: string): Promise<LocalReport | null> => {
   const reports = await getReports();
-  const updated = reports.map(r => r.id === id ? { ...r, status } : r);
-  await AsyncStorage.setItem(REPORTS_KEY, JSON.stringify(updated));
-}
+  return reports.find((report) => report.id === id) ?? null;
+};
 
-export async function retryReport(id: string): Promise<LocalReport | null> {
-  const reports = await getReports();
-  return reports.find(r => r.id === id) || null;
-}
+export const saveSelectedNode = async (nodeId: string, nodeName: string): Promise<void> => {
+  await AsyncStorage.setItem(LEGACY_NODE_KEY, JSON.stringify({ nodeId, nodeName }));
+};
 
-// ===== NODE TERSIMPAN =====
-
-export async function saveSelectedNode(nodeId: string, nodeName: string): Promise<void> {
-  await AsyncStorage.setItem(NODE_KEY, JSON.stringify({ nodeId, nodeName }));
-}
-
-export async function getSelectedNode(): Promise<{ nodeId: string; nodeName: string } | null> {
-  const data = await AsyncStorage.getItem(NODE_KEY);
+export const getSelectedNode = async (): Promise<{ nodeId: string; nodeName: string } | null> => {
+  const data = await AsyncStorage.getItem(LEGACY_NODE_KEY);
   return data ? JSON.parse(data) : null;
-}
+};
 
-// ===== DEVICE ID =====
+export const getOrCreateDeviceId = getOrCreateMobileInstallationId;
 
-export async function getOrCreateDeviceId(): Promise<string> {
-  const existing = await AsyncStorage.getItem(DEVICE_ID_KEY);
-  if (existing) return existing;
+export const clearAllLocalData = async (): Promise<void> => {
+  await clearBacklogItems();
+  await clearSentMessages();
+};
 
-  // Generate unique device ID
-  const id = 'mob_' + Math.random().toString(36).substring(2, 9).toUpperCase();
-  await AsyncStorage.setItem(DEVICE_ID_KEY, id);
-  return id;
-}
+const toLocalReport = (message: LocalSentMessage): LocalReport => ({
+  id: message.clientMessageId,
+  type: message.kind,
+  message: message.message,
+  rawText: message.rawText,
+  timestamp: new Date(message.createdAt).getTime(),
+  status: message.status,
+  nodeId: String(message.connectedNodeId),
+  sentVia: `LOOM-Node-${message.connectedNodeId}`,
+  location:
+    message.lat !== null && message.lon !== null
+      ? {
+          lat: message.lat,
+          lon: message.lon
+        }
+      : null
+});

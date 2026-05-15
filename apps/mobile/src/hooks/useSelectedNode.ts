@@ -1,62 +1,86 @@
-/**
- * useSelectedNode.ts
- * Simple in-memory store untuk node yang sedang dipilih/terkoneksi.
- * Disimpan juga ke AsyncStorage untuk persist antar sesi.
- */
+import { useEffect, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { BleNodeStatus } from '@loom/contracts';
+import type { DiscoveredNode } from '../ble/client';
 
-import { useState, useEffect } from 'react';
-import { saveSelectedNode, getSelectedNode } from '../storage/localStore';
-import { LoomNode } from '../ble/useBleScanner';
+const NODE_KEY = '@loom_validated_node';
+
+export type SelectedNode = DiscoveredNode & {
+  nodeId: number;
+  validated: boolean;
+  status?: BleNodeStatus | null;
+};
 
 type NodeState = {
-  node: LoomNode | null;
+  node: SelectedNode | null;
   isConnected: boolean;
 };
 
-// Module-level state agar bisa di-share antar screen tanpa context
-let _globalNode: LoomNode | null = null;
-let _globalConnected = false;
-let _listeners: Array<(state: NodeState) => void> = [];
+let globalNode: SelectedNode | null = null;
+let globalConnected = false;
+let listeners: Array<(state: NodeState) => void> = [];
 
-function notifyListeners() {
-  const state = { node: _globalNode, isConnected: _globalConnected };
-  _listeners.forEach(fn => fn(state));
-}
+const notifyListeners = () => {
+  const state = { node: globalNode, isConnected: globalConnected };
+  listeners.forEach((listener) => listener(state));
+};
 
-export function setGlobalNode(node: LoomNode | null, connected: boolean) {
-  _globalNode = node;
-  _globalConnected = connected;
+export const setGlobalNode = (node: SelectedNode | null, connected: boolean): void => {
+  globalNode = node;
+  globalConnected = connected;
+
   if (node) {
-    saveSelectedNode(node.id, node.name).catch(() => {});
+    AsyncStorage.setItem(
+      NODE_KEY,
+      JSON.stringify({
+        deviceId: node.deviceId,
+        name: node.name,
+        nodeId: node.nodeId
+      })
+    ).catch(() => {});
   }
-  notifyListeners();
-}
 
-export function useSelectedNode() {
+  notifyListeners();
+};
+
+export const updateGlobalNodeStatus = (status: BleNodeStatus): void => {
+  if (!globalNode) return;
+  globalNode = { ...globalNode, status };
+  notifyListeners();
+};
+
+export const useSelectedNode = (): NodeState => {
   const [state, setState] = useState<NodeState>({
-    node: _globalNode,
-    isConnected: _globalConnected,
+    node: globalNode,
+    isConnected: globalConnected
   });
 
   useEffect(() => {
-    const listener = (newState: NodeState) => setState(newState);
-    _listeners.push(listener);
+    listeners.push(setState);
 
-    // Load from storage on first mount
-    if (!_globalNode) {
-      getSelectedNode().then(saved => {
-        if (saved && !_globalNode) {
-          _globalNode = { id: saved.nodeId, name: saved.nodeName, rssi: null, distance: 'jauh' };
-          _globalConnected = false;
+    if (!globalNode) {
+      AsyncStorage.getItem(NODE_KEY)
+        .then((saved) => {
+          if (!saved || globalNode) return;
+          const parsed = JSON.parse(saved) as { deviceId: string; name: string; nodeId: number };
+          globalNode = {
+            deviceId: parsed.deviceId,
+            name: parsed.name,
+            nodeId: parsed.nodeId,
+            validated: false,
+            rssi: null,
+            distance: 'jauh'
+          };
+          globalConnected = false;
           notifyListeners();
-        }
-      });
+        })
+        .catch(() => {});
     }
 
     return () => {
-      _listeners = _listeners.filter(l => l !== listener);
+      listeners = listeners.filter((listener) => listener !== setState);
     };
   }, []);
 
   return state;
-}
+};

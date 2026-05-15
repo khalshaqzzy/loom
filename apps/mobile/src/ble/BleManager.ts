@@ -1,96 +1,64 @@
-/**
- * BleManager.ts
- * iOS-safe BLE wrapper untuk LOOM.
- *
- * Di iOS, BLE butuh native build (expo run:ios) dan device fisik.
- * Kalau BLE gagal init (misal di Simulator), otomatis masuk MOCK MODE
- * supaya UI tetap bisa di-test tanpa crash.
- */
-
-import { Platform } from 'react-native';
 import * as Network from 'expo-network';
-import { Buffer } from 'buffer';
+import type { BleMobileMessage, BleMessageAck } from '@loom/contracts';
+import { bleInternetStatusSchema, loomBleUuids } from '@loom/contracts';
+import { getOrCreateMobileInstallationId } from '../config/appConfig';
+import type { DiscoveredNode } from './client';
+import { getBleClient } from './bleClientFactory';
 
-// UUID sesuai firmware ESP32 LOOM
-export const LOOM_SERVICE_UUID = '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
-export const LOOM_REPORT_CHAR_UUID = 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
-export const LOOM_INTERNET_STATUS_CHAR_UUID = 'cba1d466-344c-4be3-ab3f-189f80dd7518';
+export const LOOM_SERVICE_UUID = loomBleUuids.service;
+export const LOOM_REPORT_CHAR_UUID = loomBleUuids.messageWrite;
+export const LOOM_INTERNET_STATUS_CHAR_UUID = loomBleUuids.internetStatus;
 
 export type LoomBleManagerType = {
   isReady: boolean;
   isMockMode: boolean;
-  manager: any | null;
+  manager: unknown | null;
 };
 
-let _instance: LoomBleManagerType | null = null;
+export const getLoomBleManager = (): LoomBleManagerType => {
+  const client = getBleClient();
+  return {
+    isReady: !client.isMock,
+    isMockMode: client.isMock,
+    manager: client
+  };
+};
 
-export function getLoomBleManager(): LoomBleManagerType {
-  if (_instance) return _instance;
+export const connectAndValidateNode = async (node: DiscoveredNode) => {
+  const client = getBleClient();
+  await client.connect(node.deviceId, node.rawDevice);
+  const identity = await client.readNodeIdentity();
+  const challenge = await client.readValidationChallenge();
+  const validation = await client.validateNode(identity.nodeId, challenge.challenge);
 
-  try {
-    // Coba import BleManager dari react-native-ble-plx
-    // Ini akan gagal di iOS Simulator tapi berhasil di device fisik
-    const { BleManager } = require('react-native-ble-plx');
-    const manager = new BleManager();
-    _instance = { isReady: true, isMockMode: false, manager };
-    console.log('[BLE] BleManager initialized (native mode)');
-  } catch (err) {
-    // Fallback ke mock mode — aman untuk testing di Simulator
-    console.warn('[BLE] Gagal init BleManager, masuk MOCK MODE:', err);
-    _instance = { isReady: false, isMockMode: true, manager: null };
+  if (!validation.validated) {
+    throw new Error('Validasi node gagal.');
   }
 
-  return _instance;
-}
+  return {
+    ...node,
+    nodeId: identity.nodeId,
+    name: node.name || `LOOM-Node-${identity.nodeId}`,
+    validated: true as const
+  };
+};
 
-/**
- * Memberitahu ESP32 Node status internet HP via BLE.
- * No-op kalau di mock mode.
- */
-export async function notifyNodeInternetStatus(device: any) {
-  const { isMockMode } = getLoomBleManager();
-  if (isMockMode || !device) {
-    console.log('[BLE MOCK] notifyNodeInternetStatus called (skipped)');
-    return;
-  }
+export const sendMobileMessageToNode = async (
+  payload: BleMobileMessage
+): Promise<BleMessageAck> => getBleClient().writeMessage(payload);
 
-  try {
-    const networkState = await Network.getNetworkStateAsync();
-    const hasInternet = networkState.isInternetReachable ? 1 : 0;
-    const payloadBuffer = Buffer.from([hasInternet]).toString('base64');
+export const notifyNodeInternetStatus = async (): Promise<void> => {
+  const networkState = await Network.getNetworkStateAsync();
+  const mobileInstallationId = await getOrCreateMobileInstallationId();
+  const payload = bleInternetStatusSchema.parse({
+    online: Boolean(networkState.isConnected && networkState.isInternetReachable),
+    observedAt: new Date().toISOString(),
+    mobileInstallationId
+  });
 
-    await device.writeCharacteristicWithResponseForService(
-      LOOM_SERVICE_UUID,
-      LOOM_INTERNET_STATUS_CHAR_UUID,
-      payloadBuffer
-    );
-    console.log('[BLE] Internet status sent to node:', hasInternet);
-  } catch (err) {
-    console.error('[BLE] Failed to notify internet status:', err);
-  }
-}
+  await getBleClient().writeInternetStatus(payload);
+};
 
-/**
- * Mengirim payload laporan darurat ke ESP32 Node via BLE.
- * No-op kalau di mock mode.
- */
-export async function sendReportToNode(device: any, payload: string): Promise<boolean> {
-  const { isMockMode } = getLoomBleManager();
-  if (isMockMode || !device) {
-    console.log('[BLE MOCK] sendReportToNode called, simulating success');
-    return true; // Mock: always "success"
-  }
-
-  try {
-    const encoded = Buffer.from(payload).toString('base64');
-    await device.writeCharacteristicWithResponseForService(
-      LOOM_SERVICE_UUID,
-      LOOM_REPORT_CHAR_UUID,
-      encoded
-    );
-    return true;
-  } catch (err) {
-    console.error('[BLE] Failed to send report:', err);
-    return false;
-  }
-}
+export const disconnectNode = async (): Promise<void> => {
+  await getBleClient().disconnect();
+};
