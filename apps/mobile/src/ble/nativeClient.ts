@@ -186,12 +186,16 @@ export class NativeBleClient implements BleClient {
 
   async readNodeIdentity(): Promise<BleNodeIdentity> {
     const value = await this.read(loomBleUuids.nodeIdentity);
-    return decodeJson(value, bleNodeIdentitySchema.parse);
+    const debugLog = [`identity:read uuid=${loomBleUuids.nodeIdentity}`];
+    const payload = this.parseJsonValue(value, 'identity:read', debugLog);
+    return this.parseSchema(payload, bleNodeIdentitySchema.parse, 'identity:read', debugLog);
   }
 
   async readValidationChallenge(): Promise<BleValidationChallenge> {
     const value = await this.read(loomBleUuids.validation);
-    return decodeJson(value, bleValidationChallengeSchema.parse);
+    const debugLog = [`validation:challenge-read uuid=${loomBleUuids.validation}`];
+    const payload = this.parseJsonValue(value, 'validation:challenge-read', debugLog);
+    return this.parseSchema(payload, bleValidationChallengeSchema.parse, 'validation:challenge-read', debugLog);
   }
 
   async validateNode(nodeId: number, challenge: string): Promise<BleValidationResponse> {
