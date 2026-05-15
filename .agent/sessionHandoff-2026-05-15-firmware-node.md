@@ -37,6 +37,12 @@ Purpose: high-signal handoff after firmware-only ESP32 node refactor for LoRa V2
 - Added Serial Monitor logs for boot/config, BLE setup and events, LoRa RX/TX, route changes, pending queue, backlog, and reject reasons.
 - Added `ArduinoJson` to `firmware/loom-node/platformio.ini`.
 - Added ADR `0015-firmware-node.md`.
+- Follow-up BLE validation hardening aligned firmware with the mobile read-fallback path:
+  - validation `onRead()` now logs without overwriting the characteristic value,
+  - challenge resets set the characteristic to challenge JSON before validation,
+  - validation writes keep the response readable after notify,
+  - failed validation no longer immediately rotates the challenge before mobile can fallback-read the response.
+- Added ADR `0017-ble-validation-read-fallback.md`.
 
 ## Important Repo Facts
 
@@ -51,6 +57,7 @@ Purpose: high-signal handoff after firmware-only ESP32 node refactor for LoRa V2
 Attempted but blocked:
 
 - `platformio run -d firmware/loom-node`
+- `platformio run -d firmware/loom-node` after BLE validation read-fallback hardening
 
 Result:
 
@@ -81,6 +88,7 @@ Completed local checks:
 - `firmware/loom-node/src/ble_bridge.h`
 - `firmware/loom-node/src/ble_bridge.cpp`
 - `docs/adr/0015-firmware-node.md`
+- `docs/adr/0017-ble-validation-read-fallback.md`
 - `.agent/sessionHandoff-2026-05-15-firmware-node.md`
 
 ## Next Start
@@ -92,6 +100,7 @@ Completed local checks:
    - boot/config logs,
    - BLE service and characteristic readiness logs,
    - identity read and validation response,
+   - validation fallback read still returns `{ validated, nodeId/error }` after validation write,
    - message write rejection before validation,
    - validated message ack,
    - pending queue when route is unknown,

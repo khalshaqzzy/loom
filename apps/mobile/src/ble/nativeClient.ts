@@ -39,6 +39,7 @@ type NativeDevice = {
 };
 
 const BLE_RESPONSE_TIMEOUT_MS = 5000;
+const BLE_NOTIFY_SUBSCRIBE_SETTLE_MS = 250;
 
 const encodeJson = (value: unknown): string => Buffer.from(JSON.stringify(value), 'utf8').toString('base64');
 
@@ -74,6 +75,8 @@ const decodeBlePayload = (value: string): string[] => {
 
   return [...new Set(candidates.map(sanitizeJsonText).filter(Boolean))];
 };
+
+const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
 
 const decodeJson = <T,>(value: string | null, parse: (input: unknown) => T): T => {
   if (!value) throw new Error('BLE payload kosong.');
@@ -289,13 +292,15 @@ export class NativeBleClient implements BleClient {
         }
       );
 
-      this.write(writeCharacteristicUuid, value).catch(error => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timeout);
-        subscription.remove();
-        reject(error instanceof Error ? error : new Error('Gagal menulis payload BLE.'));
-      });
+      wait(BLE_NOTIFY_SUBSCRIBE_SETTLE_MS)
+        .then(() => this.write(writeCharacteristicUuid, value))
+        .catch(error => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timeout);
+          subscription.remove();
+          reject(error instanceof Error ? error : new Error('Gagal menulis payload BLE.'));
+        });
     });
   }
 }

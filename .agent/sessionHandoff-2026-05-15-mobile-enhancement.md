@@ -109,6 +109,16 @@ After firmware integration testing exposed node validation failures with JSON pa
 
 This is recorded in `docs/adr/0016-mobile-ble-notify-hardening.md`.
 
+### BLE Validation Read-Fallback Follow-Up
+
+After real-device validation still surfaced `Respons BLE node tidak valid atau belum siap`, the validation read-fallback path was aligned across mobile and firmware:
+
+- Mobile now waits briefly after subscribing to validation/message response notifications before writing the request.
+- Firmware no longer rewrites the validation characteristic to a challenge during `onRead()`.
+- Firmware keeps the validation response readable after write so mobile fallback reads can parse the same response shape as notifications.
+
+This is recorded in `docs/adr/0017-ble-validation-read-fallback.md`.
+
 ### SQLite Storage
 
 New files:
@@ -238,6 +248,8 @@ npx expo config --type public
 npm run typecheck
 npx expo config --type public
 npx expo export --platform android --output-dir .expo-export-check
+npm run typecheck
+npx expo export --platform android --output-dir .expo-export-check
 ```
 
 Command context:
@@ -248,6 +260,7 @@ Command context:
 - Root `npm run typecheck` also passed and still does not include mobile.
 - The final two commands were rerun in `apps/mobile` after BLE notify hardening.
 - Android export was run in `apps/mobile` after adding Metro shared-package resolution; temporary `.expo-export-check` output was deleted after verification.
+- The final `npm run typecheck` and Android export were rerun in `apps/mobile` after the validation read-fallback adjustment; temporary `.expo-export-check` output was deleted after verification.
 
 Mobile test-file check:
 
@@ -307,6 +320,7 @@ Primary changed areas:
 - `.agent/adr-mobile-enhancement-final-ble-contract.md`
 - `.agent/sessionHandoff-2026-05-15-mobile-enhancement.md`
 - `docs/adr/0016-mobile-ble-notify-hardening.md`
+- `docs/adr/0017-ble-validation-read-fallback.md`
 - `packages/contracts/src/schemas/ble.ts`
 - `packages/contracts/src/schemas/index.ts`
 - `packages/decision-tree`

@@ -56,7 +56,7 @@ static bool parseBacklogId(const char* backlogId, uint32_t* senderNodeId, uint32
 class ValidationCallbacks : public NimBLECharacteristicCallbacks {
  public:
   explicit ValidationCallbacks(BleBridge* bridge) : bridge_(bridge) {}
-  void onRead(NimBLECharacteristic* pChar) override { pChar->setValue(bridge_->challengeJson().c_str()); }
+  void onRead(NimBLECharacteristic* pChar) override { Serial.println("[BLE RX] Validation characteristic read"); }
   void onWrite(NimBLECharacteristic* pChar) override { bridge_->handleValidationWrite(String(pChar->getValue().c_str())); }
  private:
   BleBridge* bridge_;
@@ -92,6 +92,9 @@ void BleBridge::resetChallenge() {
     challenge_[i] = alphabet[random(0, (int)strlen(alphabet))];
   }
   challenge_[12] = '\0';
+  if (validationChar_ != nullptr) {
+    validationChar_->setValue(challengeJson().c_str());
+  }
   Serial.printf("[BLE] Validation challenge refreshed: %s\n", challenge_);
 }
 
@@ -199,7 +202,6 @@ void BleBridge::handleValidationWrite(const String& json) {
   validationChar_->setValue(out.c_str());
   validationChar_->notify();
   Serial.printf("[BLE TX] Validation response: %s\n", out.c_str());
-  if (!ok) resetChallenge();
 }
 
 void BleBridge::handleMessageWrite(const String& json) {
