@@ -45,8 +45,14 @@ export const connectAndValidateNode = async (node: DiscoveredNode) => {
   } catch (error) {
     await client.disconnect().catch(() => undefined);
     const message = error instanceof Error ? error.message : '';
-    if (message.includes('JSON') || message.includes('BLE payload') || message.includes('Payload BLE')) {
-      throw new Error('Validasi node gagal. Respons BLE node tidak valid atau belum siap.');
+    if (
+      message.includes('JSON') ||
+      message.includes('BLE payload') ||
+      message.includes('Payload BLE') ||
+      message.includes('Log BLE') ||
+      message.includes('Respons validasi')
+    ) {
+      throw new Error(`Validasi node gagal. Respons BLE node tidak valid atau belum siap.\n\n${message}`);
     }
     throw error;
   }

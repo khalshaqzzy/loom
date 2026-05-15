@@ -84,13 +84,14 @@ export default function LaporanScreen() {
 
   const handleSelectNode = async (node: LoomNode) => {
     try {
+      stopScan();
       const validatedNode = await connectAndValidateNode(node);
       setGlobalNode(validatedNode, true);
       setShowNodeModal(false);
-      stopScan();
       await refreshLocation();
       await notifyNodeInternetStatus().catch(() => {});
     } catch (error) {
+      console.error('[BLE Validation] Failed to validate node', error);
       Alert.alert('Validasi Node Gagal', error instanceof Error ? error.message : 'Node tidak dapat divalidasi.');
     }
   };

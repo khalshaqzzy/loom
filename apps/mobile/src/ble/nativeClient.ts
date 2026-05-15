@@ -40,6 +40,7 @@ type NativeDevice = {
 
 const BLE_RESPONSE_TIMEOUT_MS = 5000;
 const BLE_NOTIFY_SUBSCRIBE_SETTLE_MS = 250;
+const BLE_LEGACY_STATUS_SETTLE_MS = 750;
 
 const encodeJson = (value: unknown): string => Buffer.from(JSON.stringify(value), 'utf8').toString('base64');
 
@@ -77,6 +78,17 @@ const decodeBlePayload = (value: string): string[] => {
 };
 
 const wait = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+const stringifyForLog = (value: unknown): string => {
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+};
+
+const truncateForLog = (value: string, maxLength = 500): string =>
+  value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
 
 const decodeJson = <T,>(value: string | null, parse: (input: unknown) => T): T => {
   if (!value) throw new Error('BLE payload kosong.');
@@ -163,11 +175,8 @@ export class NativeBleClient implements BleClient {
   }
 
   async validateNode(nodeId: number, challenge: string): Promise<BleValidationResponse> {
-    return this.writeAndWaitForJsonNotification(
-      loomBleUuids.validation,
-      { nodeId, challenge },
-      bleValidationResponseSchema.parse
-    );
+    const debugLog = [`validate:start nodeId=${nodeId} challenge=${challenge}`];
+    return this.validateNodeAttempt(nodeId, challenge, debugLog, 1);
   }
 
   async writeMessage(payload: BleMobileMessage): Promise<BleMessageAck> {
@@ -236,30 +245,140 @@ export class NativeBleClient implements BleClient {
     );
   }
 
-  private async writeAndWaitForJsonNotification<T>(
+  private parseJsonValue(value: string | null, source: string, debugLog: string[]): unknown {
+    if (!value) {
+      debugLog.push(`${source}: empty payload`);
+      throw new Error(this.formatBleDiagnostic('BLE payload kosong.', debugLog));
+    }
+
+    const rawPreview = truncateForLog(value);
+    const candidates = decodeBlePayload(value);
+    const errors: string[] = [];
+
+    for (const candidate of candidates) {
+      try {
+        const parsed = JSON.parse(candidate);
+        debugLog.push(`${source}: raw=${rawPreview}`);
+        debugLog.push(`${source}: json=${truncateForLog(candidate)}`);
+        return parsed;
+      } catch (error) {
+        errors.push(error instanceof Error ? error.message : String(error));
+      }
+    }
+
+    debugLog.push(`${source}: raw=${rawPreview}`);
+    debugLog.push(`${source}: parseErrors=${errors.join(' | ')}`);
+    throw new Error(this.formatBleDiagnostic('Payload BLE bukan JSON valid.', debugLog));
+  }
+
+  private parseSchema<T>(
+    payload: unknown,
+    parse: (input: unknown) => T,
+    context: string,
+    debugLog: string[]
+  ): T {
+    try {
+      return parse(payload);
+    } catch (error) {
+      debugLog.push(`${context}: schemaError=${error instanceof Error ? error.message : String(error)}`);
+      debugLog.push(`${context}: payload=${truncateForLog(stringifyForLog(payload))}`);
+      throw new Error(this.formatBleDiagnostic('Payload BLE tidak sesuai schema yang diharapkan.', debugLog));
+    }
+  }
+
+  private formatBleDiagnostic(summary: string, debugLog: string[]): string {
+    return `${summary}\n\nLog BLE:\n${debugLog.slice(-12).join('\n')}`;
+  }
+
+  private async readNodeStatusForValidation(nodeId: number, debugLog: string[]): Promise<BleValidationResponse | null> {
+    await wait(BLE_LEGACY_STATUS_SETTLE_MS);
+
+    try {
+      const value = await this.read(loomBleUuids.nodeStatus);
+      const payload = this.parseJsonValue(value, 'validation:status-read', debugLog);
+      const status = this.parseSchema(payload, bleNodeStatusSchema.parse, 'validation:status-read', debugLog);
+      if (status.nodeId === nodeId && status.validated) {
+        debugLog.push('validation:status-read confirms validated=true');
+        return { validated: true, nodeId };
+      }
+
+      debugLog.push(
+        `validation:status-read not validated nodeId=${status.nodeId} validated=${status.validated}`
+      );
+      return null;
+    } catch (error) {
+      debugLog.push(`validation:status-read failed=${error instanceof Error ? error.message : String(error)}`);
+      return null;
+    }
+  }
+
+  private async validateNodeAttempt(
+    nodeId: number,
+    challenge: string,
+    debugLog: string[],
+    attempt: 1 | 2
+  ): Promise<BleValidationResponse> {
+    debugLog.push(`validation:attempt=${attempt}`);
+    const payload = await this.writeAndWaitForJsonValue(
+      loomBleUuids.validation,
+      { nodeId, challenge },
+      debugLog,
+      `validation:attempt-${attempt}`
+    );
+
+    try {
+      const response = bleValidationResponseSchema.parse(payload);
+      debugLog.push(`validation:response validated=${response.validated}`);
+      return response;
+    } catch (responseError) {
+      debugLog.push(
+        `validation:response schemaError=${responseError instanceof Error ? responseError.message : String(responseError)}`
+      );
+    }
+
+    const fallbackChallenge = bleValidationChallengeSchema.safeParse(payload);
+    if (fallbackChallenge.success) {
+      debugLog.push(`validation:received challenge instead of response challenge=${fallbackChallenge.data.challenge}`);
+
+      const statusResponse = await this.readNodeStatusForValidation(nodeId, debugLog);
+      if (statusResponse) return statusResponse;
+
+      if (attempt === 1) {
+        return this.validateNodeAttempt(nodeId, fallbackChallenge.data.challenge, debugLog, 2);
+      }
+    }
+
+    debugLog.push(`validation:unexpected payload=${truncateForLog(stringifyForLog(payload))}`);
+    throw new Error(this.formatBleDiagnostic('Respons validasi node tidak dapat dipakai.', debugLog));
+  }
+
+  private async writeAndWaitForJsonValue(
     notificationCharacteristicUuid: string,
     value: unknown,
-    parse: (input: unknown) => T,
+    debugLog: string[],
+    operation: string,
     writeCharacteristicUuid = notificationCharacteristicUuid
-  ): Promise<T> {
+  ): Promise<unknown> {
     if (!this.device) throw new Error('BLE device belum terhubung.');
 
     let settled = false;
+    let writeStarted = false;
     let lastDecodeError: Error | null = null;
 
-    return new Promise<T>((resolve, reject) => {
+    return new Promise<unknown>((resolve, reject) => {
       const timeout = setTimeout(async () => {
         if (settled) return;
         settled = true;
         subscription.remove();
 
         try {
+          debugLog.push(`${operation}:timeout fallback read`);
           const fallbackValue = await this.read(notificationCharacteristicUuid);
-          resolve(decodeJson(fallbackValue, parse));
+          resolve(this.parseJsonValue(fallbackValue, `${operation}:fallback-read`, debugLog));
         } catch (error) {
           reject(
             lastDecodeError ??
-              (error instanceof Error ? error : new Error('Respons BLE tidak diterima dari node.'))
+              (error instanceof Error ? error : new Error(this.formatBleDiagnostic('Respons BLE tidak diterima dari node.', debugLog)))
           );
         }
       }, BLE_RESPONSE_TIMEOUT_MS);
@@ -274,14 +393,19 @@ export class NativeBleClient implements BleClient {
             settled = true;
             clearTimeout(timeout);
             subscription.remove();
-            reject(error instanceof Error ? error : new Error('Gagal menerima notifikasi BLE.'));
+            reject(error instanceof Error ? error : new Error(this.formatBleDiagnostic('Gagal menerima notifikasi BLE.', debugLog)));
             return;
           }
 
           if (!characteristic?.value) return;
 
+          if (!writeStarted) {
+            debugLog.push(`${operation}:notify before write ignored`);
+            return;
+          }
+
           try {
-            const parsed = decodeJson(characteristic.value, parse);
+            const parsed = this.parseJsonValue(characteristic.value, `${operation}:notify`, debugLog);
             settled = true;
             clearTimeout(timeout);
             subscription.remove();
@@ -293,14 +417,38 @@ export class NativeBleClient implements BleClient {
       );
 
       wait(BLE_NOTIFY_SUBSCRIBE_SETTLE_MS)
-        .then(() => this.write(writeCharacteristicUuid, value))
+        .then(async () => {
+          if (settled) return;
+          writeStarted = true;
+          debugLog.push(`${operation}:write ${truncateForLog(stringifyForLog(value))}`);
+          await this.write(writeCharacteristicUuid, value);
+          debugLog.push(`${operation}:write complete`);
+        })
         .catch(error => {
           if (settled) return;
           settled = true;
           clearTimeout(timeout);
           subscription.remove();
-          reject(error instanceof Error ? error : new Error('Gagal menulis payload BLE.'));
+          reject(error instanceof Error ? error : new Error(this.formatBleDiagnostic('Gagal menulis payload BLE.', debugLog)));
         });
     });
+  }
+
+  private async writeAndWaitForJsonNotification<T>(
+    notificationCharacteristicUuid: string,
+    value: unknown,
+    parse: (input: unknown) => T,
+    writeCharacteristicUuid = notificationCharacteristicUuid
+  ): Promise<T> {
+    if (!this.device) throw new Error('BLE device belum terhubung.');
+    const debugLog = [`response:start characteristic=${notificationCharacteristicUuid}`];
+    const payload = await this.writeAndWaitForJsonValue(
+      notificationCharacteristicUuid,
+      value,
+      debugLog,
+      'response',
+      writeCharacteristicUuid
+    );
+    return this.parseSchema(payload, parse, 'response', debugLog);
   }
 }
