@@ -17,6 +17,7 @@ import {
   bleNodeStatusSchema,
   bleValidationChallengeSchema,
   bleValidationResponseSchema,
+  loomBleProtocol,
   loomBleUuids
 } from "@loom/contracts";
 import type { BleClient, DiscoveredNode, Unsubscribe } from "./client";
@@ -279,13 +280,43 @@ export class NativeBleClient implements BleClient {
       ...this.connectionDebugLog,
       `identity:read uuid=${loomBleUuids.nodeIdentity}`
     ];
-    return this.readJsonWithRetries(
-      loomBleUuids.nodeIdentity,
-      bleNodeIdentitySchema.parse,
-      "identity:read",
-      debugLog,
-      BLE_IDENTITY_READ_ATTEMPTS
-    );
+
+    try {
+      return await this.readJsonWithRetries(
+        loomBleUuids.nodeIdentity,
+        bleNodeIdentitySchema.parse,
+        "identity:read",
+        debugLog,
+        BLE_IDENTITY_READ_ATTEMPTS
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes("4-byte binary")) throw error;
+
+      debugLog.push("identity:fallback using nodeStatus because identity stayed binary");
+
+      try {
+        const status = await this.readNodeStatusValue("identity:fallback-status-read", debugLog);
+        const identity = bleNodeIdentitySchema.parse({
+          protocol: loomBleProtocol,
+          nodeId: status.nodeId,
+          firmwareVersion: "unknown-node-status-fallback",
+          capabilities: ["node_status_identity_fallback"]
+        });
+        debugLog.push(`identity:fallback accepted nodeId=${identity.nodeId}`);
+        return identity;
+      } catch (fallbackError) {
+        debugLog.push(
+          `identity:fallback failed=${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`
+        );
+        throw new Error(
+          this.formatBleDiagnostic(
+            "Identity BLE tidak bisa dibaca dan fallback nodeStatus gagal.",
+            debugLog
+          )
+        );
+      }
+    }
   }
 
   async readValidationChallenge(): Promise<BleValidationChallenge> {
@@ -455,6 +486,12 @@ export class NativeBleClient implements BleClient {
     throw lastError ?? new Error(this.formatBleDiagnostic("Read BLE gagal.", debugLog));
   }
 
+  private async readNodeStatusValue(context: string, debugLog: string[]): Promise<BleNodeStatus> {
+    const value = await this.read(loomBleUuids.nodeStatus);
+    const payload = this.parseJsonValue(value, context, debugLog);
+    return this.parseSchema(payload, bleNodeStatusSchema.parse, context, debugLog);
+  }
+
   private parseJsonValue(value: string | null, source: string, debugLog: string[]): unknown {
     if (!value) {
       debugLog.push(`${source}: empty payload`);
@@ -512,7 +549,7 @@ export class NativeBleClient implements BleClient {
   }
 
   private formatBleDiagnostic(summary: string, debugLog: string[]): string {
-    return `${summary}\n\nLog BLE:\n${debugLog.slice(-12).join("\n")}`;
+    return `${summary}\n\nLog BLE:\n${debugLog.slice(-30).join("\n")}`;
   }
 
   private async readNodeStatusForValidation(
@@ -522,14 +559,7 @@ export class NativeBleClient implements BleClient {
     await wait(BLE_LEGACY_STATUS_SETTLE_MS);
 
     try {
-      const value = await this.read(loomBleUuids.nodeStatus);
-      const payload = this.parseJsonValue(value, "validation:status-read", debugLog);
-      const status = this.parseSchema(
-        payload,
-        bleNodeStatusSchema.parse,
-        "validation:status-read",
-        debugLog
-      );
+      const status = await this.readNodeStatusValue("validation:status-read", debugLog);
       if (status.nodeId === nodeId && status.validated) {
         debugLog.push("validation:status-read confirms validated=true");
         return { validated: true, nodeId };
