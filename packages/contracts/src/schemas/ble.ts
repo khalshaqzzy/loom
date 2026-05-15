@@ -12,7 +12,7 @@ import {
 } from "./primitives";
 
 export const loomBleUuids = {
-  service: "4fafc201-1fb5-459e-8fcc-c5c9c331914b",
+  service: "7d3f9a10-8f6e-4f7a-9c1b-2e4d8f0b6a01",
   nodeIdentity: "4fafc201-1fb5-459e-8fcc-c5c9c331914c",
   validation: "4fafc201-1fb5-459e-8fcc-c5c9c331914d",
   messageWrite: "beb5483e-36e1-4688-b7f5-ea07361b26a8",

@@ -110,6 +110,11 @@ const hexPreview = (value: string, maxBytes = 80): string => {
   return bytes.subarray(0, maxBytes).toString('hex').replace(/(.{2})/g, '$1 ').trim();
 };
 
+const decodedByteLength = (value: string): number => {
+  const normalizedBase64 = normalizeBase64(value);
+  return normalizedBase64 ? Buffer.from(normalizedBase64, 'base64').length : Buffer.from(value, 'utf8').length;
+};
+
 const decodeJson = <T,>(value: string | null, parse: (input: unknown) => T): T => {
   if (!value) throw new Error('BLE payload kosong.');
 
@@ -288,6 +293,16 @@ export class NativeBleClient implements BleClient {
 
     debugLog.push(`${source}: raw=${rawPreview}`);
     debugLog.push(`${source}: hex=${hexPreview(value)}`);
+
+    if (source.startsWith('identity') && decodedByteLength(value) === 4) {
+      debugLog.push(`${source}: detected 4-byte binary value on identity characteristic`);
+      throw new Error(
+        this.formatBleDiagnostic(
+          'Characteristic identity bukan JSON LOOM. Kemungkinan node masih menjalankan firmware lama atau service UUID bertabrakan dengan firmware contoh ESP32. Flash firmware LOOM terbaru lalu pindai ulang.',
+          debugLog
+        )
+      );
+    }
 
     for (const [index, candidate] of candidates.entries()) {
       try {

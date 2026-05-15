@@ -119,6 +119,17 @@ After real-device validation still surfaced `Respons BLE node tidak valid atau b
 
 This is recorded in `docs/adr/0017-ble-validation-read-fallback.md`.
 
+### BLE Service UUID Follow-Up
+
+Physical validation showed `identity:read raw=KOv8Pw==`, a 4-byte binary value instead of LOOM identity JSON. The old service UUID was a common ESP32 sample UUID, so mobile could discover stale/sample firmware that did not implement the LOOM final BLE contract.
+
+- The LOOM BLE service UUID is now `7d3f9a10-8f6e-4f7a-9c1b-2e4d8f0b6a01`.
+- Characteristic UUIDs remain unchanged.
+- Mobile identity diagnostics now call out 4-byte binary identity values as old/incompatible firmware or service UUID collision.
+- ESP32 firmware must be reflashed before mobile can discover the node under the new service UUID.
+
+This is recorded in `docs/adr/0018-loom-specific-ble-service-uuid.md`.
+
 ### SQLite Storage
 
 New files:
@@ -250,6 +261,10 @@ npx expo config --type public
 npx expo export --platform android --output-dir .expo-export-check
 npm run typecheck
 npx expo export --platform android --output-dir .expo-export-check
+npm run build -w @loom/contracts
+npm run typecheck -w @loom/contracts
+npm run typecheck
+npx expo export --platform android --output-dir .expo-export-check
 ```
 
 Command context:
@@ -261,6 +276,7 @@ Command context:
 - The final two commands were rerun in `apps/mobile` after BLE notify hardening.
 - Android export was run in `apps/mobile` after adding Metro shared-package resolution; temporary `.expo-export-check` output was deleted after verification.
 - The final `npm run typecheck` and Android export were rerun in `apps/mobile` after the validation read-fallback adjustment; temporary `.expo-export-check` output was deleted after verification.
+- The final contracts build/typecheck and mobile typecheck/export were rerun after moving to a LOOM-specific BLE service UUID; temporary `.expo-export-check` output was deleted after verification.
 
 Mobile test-file check:
 
@@ -321,6 +337,7 @@ Primary changed areas:
 - `.agent/sessionHandoff-2026-05-15-mobile-enhancement.md`
 - `docs/adr/0016-mobile-ble-notify-hardening.md`
 - `docs/adr/0017-ble-validation-read-fallback.md`
+- `docs/adr/0018-loom-specific-ble-service-uuid.md`
 - `packages/contracts/src/schemas/ble.ts`
 - `packages/contracts/src/schemas/index.ts`
 - `packages/decision-tree`

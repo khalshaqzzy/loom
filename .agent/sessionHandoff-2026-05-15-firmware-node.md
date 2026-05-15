@@ -43,6 +43,8 @@ Purpose: high-signal handoff after firmware-only ESP32 node refactor for LoRa V2
   - validation writes keep the response readable after notify,
   - failed validation no longer immediately rotates the challenge before mobile can fallback-read the response.
 - Added ADR `0017-ble-validation-read-fallback.md`.
+- Follow-up BLE discovery hardening changed the service UUID from the common ESP32 sample UUID to LOOM-specific `7d3f9a10-8f6e-4f7a-9c1b-2e4d8f0b6a01` after physical mobile diagnostics showed binary identity values from an incompatible/sample service.
+- Added ADR `0018-loom-specific-ble-service-uuid.md`.
 
 ## Important Repo Facts
 
@@ -50,6 +52,7 @@ Purpose: high-signal handoff after firmware-only ESP32 node refactor for LoRa V2
 - `firmware/loom-gateway` was not changed.
 - Mobile, backend, shared TypeScript contracts, shared fixtures, and tests were not changed.
 - Firmware now carries local LoRa/BLE constants that may still differ from `packages/contracts` until a later shared-contract phase.
+- Firmware and `packages/contracts` now agree on the LOOM-specific BLE service UUID. Characteristic UUIDs remain unchanged.
 - No firmware tests were added because the user explicitly requested no tests.
 
 ## Verification Run
@@ -89,6 +92,7 @@ Completed local checks:
 - `firmware/loom-node/src/ble_bridge.cpp`
 - `docs/adr/0015-firmware-node.md`
 - `docs/adr/0017-ble-validation-read-fallback.md`
+- `docs/adr/0018-loom-specific-ble-service-uuid.md`
 - `.agent/sessionHandoff-2026-05-15-firmware-node.md`
 
 ## Next Start
@@ -98,7 +102,7 @@ Completed local checks:
 2. Flash a node and open Serial Monitor at `115200`.
 3. Verify:
    - boot/config logs,
-   - BLE service and characteristic readiness logs,
+   - BLE service and characteristic readiness logs using service UUID `7d3f9a10-8f6e-4f7a-9c1b-2e4d8f0b6a01`,
    - identity read and validation response,
    - validation fallback read still returns `{ validated, nodeId/error }` after validation write,
    - message write rejection before validation,

@@ -16,7 +16,7 @@ static const int LORA_RST = 27;
 static const int LORA_DIO0 = 14;
 static const long LORA_FREQ = 868E6;
 
-static const char* const LOOM_SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+static const char* const LOOM_SERVICE_UUID = "7d3f9a10-8f6e-4f7a-9c1b-2e4d8f0b6a01";
 static const char* const LOOM_IDENTITY_CHAR_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914c";
 static const char* const LOOM_VALIDATION_CHAR_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914d";
 static const char* const LOOM_MESSAGE_CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
