@@ -17,14 +17,14 @@ static const int LORA_DIO0 = 14;
 static const long LORA_FREQ = 868E6;
 
 static const char* const LOOM_SERVICE_UUID = "7d3f9a10-8f6e-4f7a-9c1b-2e4d8f0b6a01";
-static const char* const LOOM_IDENTITY_CHAR_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914c";
-static const char* const LOOM_VALIDATION_CHAR_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914d";
-static const char* const LOOM_MESSAGE_CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
-static const char* const LOOM_MESSAGE_ACK_CHAR_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a9";
-static const char* const LOOM_BACKLOG_STREAM_CHAR_UUID = "5f7e2d00-6c2e-4e68-9b7a-9bc6b193f001";
-static const char* const LOOM_BACKLOG_ACK_CHAR_UUID = "5f7e2d00-6c2e-4e68-9b7a-9bc6b193f002";
-static const char* const LOOM_INTERNET_STATUS_CHAR_UUID = "cba1d466-344c-4be3-ab3f-189f80dd7518";
-static const char* const LOOM_NODE_STATUS_CHAR_UUID = "cba1d466-344c-4be3-ab3f-189f80dd7519";
+static const char* const LOOM_IDENTITY_CHAR_UUID = "7d3f9a11-8f6e-4f7a-9c1b-2e4d8f0b6a01";
+static const char* const LOOM_VALIDATION_CHAR_UUID = "7d3f9a12-8f6e-4f7a-9c1b-2e4d8f0b6a01";
+static const char* const LOOM_MESSAGE_CHAR_UUID = "7d3f9a13-8f6e-4f7a-9c1b-2e4d8f0b6a01";
+static const char* const LOOM_MESSAGE_ACK_CHAR_UUID = "7d3f9a14-8f6e-4f7a-9c1b-2e4d8f0b6a01";
+static const char* const LOOM_BACKLOG_STREAM_CHAR_UUID = "7d3f9a15-8f6e-4f7a-9c1b-2e4d8f0b6a01";
+static const char* const LOOM_BACKLOG_ACK_CHAR_UUID = "7d3f9a16-8f6e-4f7a-9c1b-2e4d8f0b6a01";
+static const char* const LOOM_INTERNET_STATUS_CHAR_UUID = "7d3f9a17-8f6e-4f7a-9c1b-2e4d8f0b6a01";
+static const char* const LOOM_NODE_STATUS_CHAR_UUID = "7d3f9a18-8f6e-4f7a-9c1b-2e4d8f0b6a01";
 
 static const uint16_t ROUTE_INFINITY = 65535;
 static const uint16_t LORA_MAGIC = 0xD15A;

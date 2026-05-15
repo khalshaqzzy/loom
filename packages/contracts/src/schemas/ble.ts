@@ -13,14 +13,14 @@ import {
 
 export const loomBleUuids = {
   service: "7d3f9a10-8f6e-4f7a-9c1b-2e4d8f0b6a01",
-  nodeIdentity: "4fafc201-1fb5-459e-8fcc-c5c9c331914c",
-  validation: "4fafc201-1fb5-459e-8fcc-c5c9c331914d",
-  messageWrite: "beb5483e-36e1-4688-b7f5-ea07361b26a8",
-  messageAck: "beb5483e-36e1-4688-b7f5-ea07361b26a9",
-  backlogStream: "5f7e2d00-6c2e-4e68-9b7a-9bc6b193f001",
-  backlogAck: "5f7e2d00-6c2e-4e68-9b7a-9bc6b193f002",
-  internetStatus: "cba1d466-344c-4be3-ab3f-189f80dd7518",
-  nodeStatus: "cba1d466-344c-4be3-ab3f-189f80dd7519"
+  nodeIdentity: "7d3f9a11-8f6e-4f7a-9c1b-2e4d8f0b6a01",
+  validation: "7d3f9a12-8f6e-4f7a-9c1b-2e4d8f0b6a01",
+  messageWrite: "7d3f9a13-8f6e-4f7a-9c1b-2e4d8f0b6a01",
+  messageAck: "7d3f9a14-8f6e-4f7a-9c1b-2e4d8f0b6a01",
+  backlogStream: "7d3f9a15-8f6e-4f7a-9c1b-2e4d8f0b6a01",
+  backlogAck: "7d3f9a16-8f6e-4f7a-9c1b-2e4d8f0b6a01",
+  internetStatus: "7d3f9a17-8f6e-4f7a-9c1b-2e4d8f0b6a01",
+  nodeStatus: "7d3f9a18-8f6e-4f7a-9c1b-2e4d8f0b6a01"
 } as const;
 
 export const loomBleProtocol = "loom-ble-v1" as const;

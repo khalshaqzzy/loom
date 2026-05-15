@@ -23,10 +23,8 @@ Implemented the mobile enhancement phase from `.agent/integrationImpelentationPh
 
 `packages/contracts/src/schemas/ble.ts` now defines:
 
-- Existing service UUID.
-- Existing report/message write UUID.
-- Existing internet status UUID.
-- New identity, validation, message ack, backlog stream, backlog ack, and node status UUIDs.
+- LOOM-specific service UUID.
+- LOOM-specific identity, validation, message write, message ack, backlog stream, backlog ack, internet status, and node status UUIDs.
 - Zod schemas and TypeScript types for final BLE payloads.
 
 `packages/contracts/src/schemas/index.ts` exports the BLE schemas.
@@ -121,12 +119,12 @@ This is recorded in `docs/adr/0017-ble-validation-read-fallback.md`.
 
 ### BLE Service UUID Follow-Up
 
-Physical validation showed `identity:read raw=KOv8Pw==`, a 4-byte binary value instead of LOOM identity JSON. The old service UUID was a common ESP32 sample UUID, so mobile could discover stale/sample firmware that did not implement the LOOM final BLE contract.
+Physical validation showed `identity:read raw=KOv8Pw==`, a 4-byte binary value instead of LOOM identity JSON. The old service and characteristic UUIDs included common ESP32 sample UUIDs, so mobile could discover stale/sample firmware that did not implement the LOOM final BLE contract.
 
 - The LOOM BLE service UUID is now `7d3f9a10-8f6e-4f7a-9c1b-2e4d8f0b6a01`.
-- Characteristic UUIDs remain unchanged.
+- LOOM BLE characteristic UUIDs now use the same project namespace from `7d3f9a11-...` through `7d3f9a18-...`.
 - Mobile identity diagnostics now call out 4-byte binary identity values as old/incompatible firmware or service UUID collision.
-- ESP32 firmware must be reflashed before mobile can discover the node under the new service UUID.
+- ESP32 firmware must be reflashed before mobile can discover and validate the node under the new BLE UUID namespace.
 
 This is recorded in `docs/adr/0018-loom-specific-ble-service-uuid.md`.
 
@@ -276,7 +274,7 @@ Command context:
 - The final two commands were rerun in `apps/mobile` after BLE notify hardening.
 - Android export was run in `apps/mobile` after adding Metro shared-package resolution; temporary `.expo-export-check` output was deleted after verification.
 - The final `npm run typecheck` and Android export were rerun in `apps/mobile` after the validation read-fallback adjustment; temporary `.expo-export-check` output was deleted after verification.
-- The final contracts build/typecheck and mobile typecheck/export were rerun after moving to a LOOM-specific BLE service UUID; temporary `.expo-export-check` output was deleted after verification.
+- The final contracts build/typecheck and mobile typecheck/export were rerun after moving to a LOOM-specific BLE UUID namespace; temporary `.expo-export-check` output was deleted after verification.
 
 Mobile test-file check:
 
