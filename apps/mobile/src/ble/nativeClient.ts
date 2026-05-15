@@ -355,10 +355,54 @@ export class NativeBleClient implements BleClient {
     }
   }
 
-  async readValidationChallenge(): Promise<BleValidationChallenge> {
-    const value = await this.read(loomBleUuids.validation);
+  async readValidationChallenge(nodeId?: number): Promise<BleValidationChallenge | BleValidationResponse> {
     const debugLog = [`validation:challenge-read uuid=${loomBleUuids.validation}`];
-    const payload = this.parseJsonValue(value, "validation:challenge-read", debugLog);
+    const payload = await this.readValidationChallengePayload(debugLog, "validation:challenge-read");
+    const challenge = bleValidationChallengeSchema.safeParse(payload);
+    if (challenge.success) return challenge.data;
+
+    const response = bleValidationResponseSchema.safeParse(payload);
+    if (response.success) {
+      debugLog.push(
+        `validation:challenge-read received validation response validated=${response.data.validated}`
+      );
+
+      if (response.data.validated && nodeId !== undefined && response.data.nodeId === nodeId) {
+        const statusResponse = await this.readNodeStatusForValidation(nodeId, debugLog);
+        if (statusResponse) return statusResponse;
+      }
+
+      debugLog.push("validation:challenge-read stale response; reconnecting for fresh challenge");
+      if (await this.reconnectForValidationRead(debugLog)) {
+        const retryPayload = await this.readValidationChallengePayload(
+          debugLog,
+          "validation:challenge-retry-read"
+        );
+        const retryChallenge = bleValidationChallengeSchema.safeParse(retryPayload);
+        if (retryChallenge.success) return retryChallenge.data;
+
+        const retryResponse = bleValidationResponseSchema.safeParse(retryPayload);
+        if (retryResponse.success) {
+          debugLog.push(
+            `validation:challenge-retry-read still response=${truncateForLog(stringifyForLog(retryResponse.data))}`
+          );
+          throw new Error(
+            this.formatBleDiagnostic(
+              "Characteristic validasi masih berisi respons validasi sebelumnya setelah reconnect.",
+              debugLog
+            )
+          );
+        }
+
+        return this.parseSchema(
+          retryPayload,
+          bleValidationChallengeSchema.parse,
+          "validation:challenge-retry-read",
+          debugLog
+        );
+      }
+    }
+
     return this.parseSchema(
       payload,
       bleValidationChallengeSchema.parse,
@@ -529,6 +573,14 @@ export class NativeBleClient implements BleClient {
     return this.parseSchema(payload, bleNodeStatusSchema.parse, context, debugLog);
   }
 
+  private async readValidationChallengePayload(
+    debugLog: string[],
+    context: string
+  ): Promise<unknown> {
+    const value = await this.read(loomBleUuids.validation);
+    return this.parseJsonValue(value, context, debugLog);
+  }
+
   private async reconnectForIdentityRead(debugLog: string[]): Promise<boolean> {
     const deviceId = this.connectedDeviceId ?? this.device?.id;
     if (!deviceId) {
@@ -548,6 +600,30 @@ export class NativeBleClient implements BleClient {
     } catch (error) {
       debugLog.push(
         `identity:reconnect failed=${error instanceof Error ? error.message : String(error)}`
+      );
+      return false;
+    }
+  }
+
+  private async reconnectForValidationRead(debugLog: string[]): Promise<boolean> {
+    const deviceId = this.connectedDeviceId ?? this.device?.id;
+    if (!deviceId) {
+      debugLog.push("validation:reconnect skipped=no connected device id");
+      return false;
+    }
+
+    try {
+      await this.device?.cancelConnection().catch(() => undefined);
+      this.device = null;
+      await wait(500);
+      await this.connect(deviceId, this.rawDevice);
+      for (const entry of this.connectionDebugLog) {
+        debugLog.push(`validation:reconnect:${entry}`);
+      }
+      return true;
+    } catch (error) {
+      debugLog.push(
+        `validation:reconnect failed=${error instanceof Error ? error.message : String(error)}`
       );
       return false;
     }

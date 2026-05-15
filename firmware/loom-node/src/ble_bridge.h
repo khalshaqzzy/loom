@@ -41,6 +41,7 @@ class BleBridge {
   NimBLECharacteristic* nodeStatusChar_ = nullptr;
   uint32_t lastBacklogNotifyMs_ = 0;
 
+  void resetValidationSession(const char* reason);
   void resetChallenge();
   String identityJson() const;
   String challengeJson() const;
@@ -56,6 +57,7 @@ class BleBridge {
   friend class MessageCallbacks;
   friend class BacklogAckCallbacks;
   friend class InternetCallbacks;
+  friend class ServerCallbacks;
 };
 
 }

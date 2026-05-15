@@ -132,6 +132,31 @@ class InternetCallbacks : public NimBLECharacteristicCallbacks {
   BleBridge* bridge_;
 };
 
+class ServerCallbacks : public NimBLEServerCallbacks {
+ public:
+  explicit ServerCallbacks(BleBridge* bridge) : bridge_(bridge) {}
+
+  void onConnect(NimBLEServer*) override {
+    bridge_->resetValidationSession("connect");
+  }
+
+  void onDisconnect(NimBLEServer* server) override {
+    bridge_->resetValidationSession("disconnect");
+    server->startAdvertising();
+    Serial.println("[BLE] Advertising restarted after disconnect");
+  }
+
+ private:
+  BleBridge* bridge_;
+};
+
+void BleBridge::resetValidationSession(const char* reason) {
+  validated_ = false;
+  lastBacklogNotifyMs_ = 0;
+  resetChallenge();
+  Serial.printf("[BLE] Validation session reset reason=%s\n", reason == nullptr ? "unknown" : reason);
+}
+
 void BleBridge::resetChallenge() {
   static const char alphabet[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   for (size_t i = 0; i < 12; i++) {
@@ -170,12 +195,13 @@ String BleBridge::challengeJson() const {
 void BleBridge::begin(uint32_t nodeId, BleBridgeCallbacks* callbacks) {
   nodeId_ = nodeId;
   callbacks_ = callbacks;
-  validated_ = false;
-  resetChallenge();
+  resetValidationSession("begin");
 
   NimBLEDevice::init(BLE_DEVICE_NAME);
   Serial.printf("[BLE] Init device=%s service=%s\n", BLE_DEVICE_NAME, LOOM_SERVICE_UUID);
   NimBLEServer* server = NimBLEDevice::createServer();
+  server->setCallbacks(new ServerCallbacks(this));
+  server->advertiseOnDisconnect(false);
   NimBLEService* service = server->createService(LOOM_SERVICE_UUID);
 
   identityChar_ = service->createCharacteristic(LOOM_IDENTITY_CHAR_UUID, NIMBLE_PROPERTY::READ);
