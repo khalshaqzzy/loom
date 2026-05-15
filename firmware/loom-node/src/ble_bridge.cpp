@@ -53,6 +53,18 @@ static bool parseBacklogId(const char* backlogId, uint32_t* senderNodeId, uint32
   return true;
 }
 
+class IdentityCallbacks : public NimBLECharacteristicCallbacks {
+ public:
+  explicit IdentityCallbacks(BleBridge* bridge) : bridge_(bridge) {}
+  void onRead(NimBLECharacteristic* pChar) override {
+    String out = bridge_->identityJson();
+    pChar->setValue(out.c_str());
+    Serial.printf("[BLE TX] Identity read: %s\n", out.c_str());
+  }
+ private:
+  BleBridge* bridge_;
+};
+
 class ValidationCallbacks : public NimBLECharacteristicCallbacks {
  public:
   explicit ValidationCallbacks(BleBridge* bridge) : bridge_(bridge) {}
@@ -131,8 +143,10 @@ void BleBridge::begin(uint32_t nodeId, BleBridgeCallbacks* callbacks) {
   NimBLEServer* server = NimBLEDevice::createServer();
   NimBLEService* service = server->createService(LOOM_SERVICE_UUID);
 
-  NimBLECharacteristic* identityChar = service->createCharacteristic(LOOM_IDENTITY_CHAR_UUID, NIMBLE_PROPERTY::READ);
-  identityChar->setValue(identityJson().c_str());
+  identityChar_ = service->createCharacteristic(LOOM_IDENTITY_CHAR_UUID, NIMBLE_PROPERTY::READ);
+  identityChar_->setCallbacks(new IdentityCallbacks(this));
+  String identity = identityJson();
+  identityChar_->setValue(identity.c_str());
   Serial.printf("[BLE] Identity ready uuid=%s node=%lu\n", LOOM_IDENTITY_CHAR_UUID, nodeId_);
 
   validationChar_ = service->createCharacteristic(

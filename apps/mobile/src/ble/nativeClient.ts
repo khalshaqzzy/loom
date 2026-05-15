@@ -26,7 +26,7 @@ type NativeDevice = {
   id: string;
   name?: string | null;
   rssi?: number | null;
-  connect(): Promise<NativeDevice>;
+  connect(options?: unknown): Promise<NativeDevice>;
   discoverAllServicesAndCharacteristics(): Promise<NativeDevice>;
   readCharacteristicForService(serviceUuid: string, characteristicUuid: string): Promise<{ value: string | null }>;
   writeCharacteristicWithResponseForService(serviceUuid: string, characteristicUuid: string, value: string): Promise<unknown>;
@@ -174,8 +174,15 @@ export class NativeBleClient implements BleClient {
   }
 
   async connect(deviceId: string, rawDevice?: unknown): Promise<void> {
+    await this.manager.cancelDeviceConnection?.(deviceId).catch(() => undefined);
+    await wait(300);
     const device = (rawDevice as NativeDevice | undefined) ?? (await this.manager.connectToDevice(deviceId));
-    this.device = await (await device.connect()).discoverAllServicesAndCharacteristics();
+    const connected = await device.connect({
+      refreshGatt: Platform.OS === 'android' ? 'OnConnected' : undefined,
+      requestMTU: Platform.OS === 'android' ? 256 : undefined,
+      timeout: 10000
+    });
+    this.device = await connected.discoverAllServicesAndCharacteristics();
   }
 
   async disconnect(): Promise<void> {

@@ -34,6 +34,7 @@ class BleBridge {
   bool validated_ = false;
   char challenge_[17] = {0};
   BleBridgeCallbacks* callbacks_ = nullptr;
+  NimBLECharacteristic* identityChar_ = nullptr;
   NimBLECharacteristic* validationChar_ = nullptr;
   NimBLECharacteristic* messageAckChar_ = nullptr;
   NimBLECharacteristic* backlogChar_ = nullptr;
@@ -50,6 +51,7 @@ class BleBridge {
   void notifyMessageAck(const char* clientMessageId, bool accepted, const DataPacket& packet, bool queued, const char* error);
   void notifyBacklogItem(const BacklogItem& item);
 
+  friend class IdentityCallbacks;
   friend class ValidationCallbacks;
   friend class MessageCallbacks;
   friend class BacklogAckCallbacks;
