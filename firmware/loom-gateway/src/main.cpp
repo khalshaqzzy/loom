@@ -2,13 +2,14 @@
 #include <LoRa.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h> 
 
 // ── Identity ─────────────────────────────────────────────
 #define GATEWAY_NODE_ID   1       // daftarkan ke backend via POST /api/nodes
 
 // ── WiFi (konek ke internet) ──────────────────────────────
-const char* WIFI_SSID     = "yang ituu";
-const char* WIFI_PASSWORD = "apayalupa";
+const char* WIFI_SSID     = "NAMA_WIFI";
+const char* WIFI_PASSWORD = "PASSWORD_WIFI";
 
 // ── Backend API ───────────────────────────────────────────
 const char* API_BURST_URL = "http://api.loomnetwork.site/api/ingest/burst";
@@ -20,7 +21,7 @@ const char* API_BURST_URL = "http://api.loomnetwork.site/api/ingest/burst";
 #define LORA_CS         32
 #define LORA_RST        27
 #define LORA_DIO0       14
-#define LORA_FREQ       433E6
+#define LORA_FREQ       868E6
 
 // ── LoRa Packet Types ─────────────────────────────────────
 #define PKT_HEARTBEAT   0x01
@@ -87,8 +88,11 @@ void postToBackend(uint32_t senderNodeId, uint32_t srcSeq,
     GATEWAY_NODE_ID
   );
 
+  WiFiClientSecure client;
+  client.setInsecure();
+
   HTTPClient http;
-  http.begin(API_BURST_URL);
+  http.begin(client, "https://api.loomnetwork.site/api/ingest/burst");
   http.addHeader("Content-Type", "application/json");
 
   int code = http.POST(body);

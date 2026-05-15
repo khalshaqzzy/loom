@@ -21,7 +21,7 @@
 #define LORA_CS         32
 #define LORA_RST        27
 #define LORA_DIO0       14
-#define LORA_FREQ       433E6
+#define LORA_FREQ       868E6
 
 // ── LoRa Packet Types ─────────────────────────────────────
 #define PKT_HEARTBEAT   0x01
@@ -30,12 +30,15 @@
 
 // ── Interval ─────────────────────────────────────────────
 #define HEARTBEAT_INTERVAL_MS 30000
+#define DATA_INTERVAL_MS      5000
+#define MESSAGE_VALUE         "fine"
 
 // ── State ─────────────────────────────────────────────────
 uint32_t seqId          = 0;
 uint16_t rangeToGateway = ROUTE_INFINITY;
 bool hasInternet        = false;
 unsigned long lastHeartbeat = 0;
+unsigned long lastData = 0;
 
 // ── Dedup cache ───────────────────────────────────────────
 #define DEDUP_CACHE_SIZE 16
@@ -279,5 +282,10 @@ void loop() {
   if (now - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
     sendHeartbeat();
     lastHeartbeat = now;
+  }
+
+  if (now - lastData >= DATA_INTERVAL_MS) {
+    sendLoRaData(MESSAGE_VALUE);
+    lastData = now;
   }
 }
