@@ -42,6 +42,19 @@ type NativeDevice = {
     characteristicUuid: string,
     listener: (error: unknown, characteristic: { value: string | null } | null) => void
   ): { remove(): void };
+  services?(): Promise<Array<{ uuid: string }>>;
+  characteristicsForService?(
+    serviceUuid: string
+  ): Promise<
+    Array<{
+      uuid: string;
+      isReadable?: boolean;
+      isWritableWithResponse?: boolean;
+      isWritableWithoutResponse?: boolean;
+      isNotifiable?: boolean;
+      value?: string | null;
+    }>
+  >;
   cancelConnection(): Promise<unknown>;
 };
 
@@ -53,12 +66,14 @@ type NativeBleManager = {
   ): void;
   stopDeviceScan(): void;
   cancelDeviceConnection?(deviceId: string): Promise<unknown>;
-  connectToDevice(deviceId: string): Promise<NativeDevice>;
+  connectToDevice(deviceId: string, options?: unknown): Promise<NativeDevice>;
 };
 
 const BLE_RESPONSE_TIMEOUT_MS = 5000;
 const BLE_NOTIFY_SUBSCRIBE_SETTLE_MS = 250;
 const BLE_LEGACY_STATUS_SETTLE_MS = 750;
+const BLE_IDENTITY_READ_ATTEMPTS = 3;
+const BLE_IDENTITY_READ_RETRY_MS = 350;
 
 const encodeJson = (value: unknown): string =>
   Buffer.from(JSON.stringify(value), "utf8").toString("base64");
@@ -129,11 +144,9 @@ const hexPreview = (value: string, maxBytes = 80): string => {
     ? Buffer.from(normalizedBase64, "base64")
     : Buffer.from(value, "utf8");
 
-  return bytes
-    .subarray(0, maxBytes)
-    .toString("hex")
-    .replace(/(.{2})/g, "$1 ")
-    .trim();
+  return Array.from(bytes.subarray(0, maxBytes))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join(" ");
 };
 
 const decodedByteLength = (value: string): number => {
@@ -162,6 +175,7 @@ export class NativeBleClient implements BleClient {
   isMock = false;
   private manager: NativeBleManager;
   private device: NativeDevice | null = null;
+  private connectionDebugLog: string[] = [];
 
   constructor(manager: NativeBleManager) {
     this.manager = manager;
@@ -213,29 +227,65 @@ export class NativeBleClient implements BleClient {
   }
 
   async connect(deviceId: string, rawDevice?: unknown): Promise<void> {
+    try {
+      this.manager.stopDeviceScan();
+    } catch {
+      // Some Android adapters report an error when no scan is active.
+    }
+    const raw = rawDevice as NativeDevice | undefined;
+    this.connectionDebugLog = [
+      `connect:deviceId=${deviceId}`,
+      raw
+        ? `connect:rawDevice id=${raw.id} name=${raw.name ?? "unknown"} rssi=${raw.rssi ?? "unknown"}`
+        : "connect:rawDevice unavailable"
+    ];
+
     await this.manager.cancelDeviceConnection?.(deviceId).catch(() => undefined);
     await wait(300);
-    const device =
-      (rawDevice as NativeDevice | undefined) ?? (await this.manager.connectToDevice(deviceId));
-    const connected = await device.connect({
+
+    const connectionOptions = {
       refreshGatt: Platform.OS === "android" ? "OnConnected" : undefined,
       requestMTU: Platform.OS === "android" ? 256 : undefined,
       timeout: 10000
-    });
+    };
+
+    let connected: NativeDevice;
+    try {
+      connected = await this.manager.connectToDevice(deviceId, connectionOptions);
+      this.connectionDebugLog.push("connect:manager.connectToDevice complete");
+    } catch (error) {
+      if (!raw) throw error;
+      this.connectionDebugLog.push(
+        `connect:manager.connectToDevice failed=${error instanceof Error ? error.message : String(error)}`
+      );
+      connected = await raw.connect(connectionOptions);
+      this.connectionDebugLog.push("connect:rawDevice.connect complete");
+    }
+
     this.device = await connected.discoverAllServicesAndCharacteristics();
+    this.connectionDebugLog.push(`connect:discovered id=${this.device.id}`);
+    await this.appendGattDebug(loomBleUuids.service, this.connectionDebugLog);
   }
 
   async disconnect(): Promise<void> {
     if (!this.device) return;
     await this.device.cancelConnection();
     this.device = null;
+    this.connectionDebugLog = [];
   }
 
   async readNodeIdentity(): Promise<BleNodeIdentity> {
-    const value = await this.read(loomBleUuids.nodeIdentity);
-    const debugLog = [`identity:read uuid=${loomBleUuids.nodeIdentity}`];
-    const payload = this.parseJsonValue(value, "identity:read", debugLog);
-    return this.parseSchema(payload, bleNodeIdentitySchema.parse, "identity:read", debugLog);
+    const debugLog = [
+      ...this.connectionDebugLog,
+      `identity:read uuid=${loomBleUuids.nodeIdentity}`
+    ];
+    return this.readJsonWithRetries(
+      loomBleUuids.nodeIdentity,
+      bleNodeIdentitySchema.parse,
+      "identity:read",
+      debugLog,
+      BLE_IDENTITY_READ_ATTEMPTS
+    );
   }
 
   async readValidationChallenge(): Promise<BleValidationChallenge> {
@@ -324,6 +374,87 @@ export class NativeBleClient implements BleClient {
     );
   }
 
+  private async appendGattDebug(serviceUuid: string, debugLog: string[]): Promise<void> {
+    if (!this.device) return;
+
+    try {
+      const services = await this.device.services?.();
+      if (services) {
+        debugLog.push(`connect:services=${services.map((service) => service.uuid).join(",")}`);
+      }
+    } catch (error) {
+      debugLog.push(
+        `connect:services failed=${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    try {
+      const characteristics = await this.device.characteristicsForService?.(serviceUuid);
+      if (characteristics) {
+        debugLog.push(
+          `connect:characteristics=${characteristics
+            .map((characteristic) => {
+              const flags = [
+                characteristic.isReadable ? "R" : "",
+                characteristic.isWritableWithResponse ? "W" : "",
+                characteristic.isWritableWithoutResponse ? "WN" : "",
+                characteristic.isNotifiable ? "N" : ""
+              ]
+                .filter(Boolean)
+                .join("");
+              return `${characteristic.uuid}${flags ? `(${flags})` : ""}`;
+            })
+            .join(",")}`
+        );
+      }
+    } catch (error) {
+      debugLog.push(
+        `connect:characteristics failed=${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  private async readJsonWithRetries<T>(
+    characteristicUuid: string,
+    parse: (input: unknown) => T,
+    source: string,
+    debugLog: string[],
+    attempts: number
+  ): Promise<T> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      if (attempt > 1) await wait(BLE_IDENTITY_READ_RETRY_MS);
+      debugLog.push(`${source}:attempt=${attempt}`);
+
+      try {
+        const value = await this.read(characteristicUuid);
+        const payload = this.parseJsonValue(value, source, debugLog);
+        return this.parseSchema(payload, parse, source, debugLog);
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        debugLog.push(`${source}:attempt${attempt} failed=${lastError.message.split("\n")[0]}`);
+
+        if (!lastError.message.includes("4-byte binary")) {
+          throw lastError;
+        }
+
+        if (attempt === attempts) {
+          throw new Error(
+            this.formatBleDiagnostic(
+              "Characteristic identity masih mengembalikan 4-byte binary setelah retry.",
+              debugLog
+            )
+          );
+        }
+
+        debugLog.push(`${source}:retrying after stale/binary identity read`);
+      }
+    }
+
+    throw lastError ?? new Error(this.formatBleDiagnostic("Read BLE gagal.", debugLog));
+  }
+
   private parseJsonValue(value: string | null, source: string, debugLog: string[]): unknown {
     if (!value) {
       debugLog.push(`${source}: empty payload`);
@@ -341,7 +472,7 @@ export class NativeBleClient implements BleClient {
       debugLog.push(`${source}: detected 4-byte binary value on identity characteristic`);
       throw new Error(
         this.formatBleDiagnostic(
-          "Characteristic identity bukan JSON LOOM. Kemungkinan node masih menjalankan firmware lama atau service UUID bertabrakan dengan firmware contoh ESP32. Flash firmware LOOM terbaru lalu pindai ulang.",
+          "Characteristic identity mengembalikan 4-byte binary, bukan JSON LOOM. Jika Serial ESP sudah menampilkan Identity read JSON, kemungkinan Android masih memakai GATT/value cache atau koneksi stale. Reset Bluetooth/app data lalu pindai ulang.",
           debugLog
         )
       );
