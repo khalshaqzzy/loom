@@ -1,6 +1,7 @@
 import { MockBleClient } from "./mockClient";
 import { NativeBleClient } from "./nativeClient";
 import type { BleClient } from "./client";
+import { BleManager } from "react-native-ble-plx";
 
 let client: BleClient | null = null;
 
@@ -8,7 +9,6 @@ export const getBleClient = (): BleClient => {
   if (client) return client;
 
   try {
-    const { BleManager } = require("react-native-ble-plx");
     client = new NativeBleClient(new BleManager());
     return client;
   } catch (error) {

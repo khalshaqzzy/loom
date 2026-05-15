@@ -45,6 +45,17 @@ type NativeDevice = {
   cancelConnection(): Promise<unknown>;
 };
 
+type NativeBleManager = {
+  startDeviceScan(
+    serviceUUIDs: string[] | null,
+    options: unknown,
+    listener: (error: unknown, device: NativeDevice | null) => void
+  ): void;
+  stopDeviceScan(): void;
+  cancelDeviceConnection?(deviceId: string): Promise<unknown>;
+  connectToDevice(deviceId: string): Promise<NativeDevice>;
+};
+
 const BLE_RESPONSE_TIMEOUT_MS = 5000;
 const BLE_NOTIFY_SUBSCRIBE_SETTLE_MS = 250;
 const BLE_LEGACY_STATUS_SETTLE_MS = 750;
@@ -149,10 +160,10 @@ const decodeJson = <T>(value: string | null, parse: (input: unknown) => T): T =>
 
 export class NativeBleClient implements BleClient {
   isMock = false;
-  private manager: any;
+  private manager: NativeBleManager;
   private device: NativeDevice | null = null;
 
-  constructor(manager: any) {
+  constructor(manager: NativeBleManager) {
     this.manager = manager;
   }
 
