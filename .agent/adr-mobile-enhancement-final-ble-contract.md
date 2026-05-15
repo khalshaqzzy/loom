@@ -110,7 +110,6 @@ The decision also keeps the user's explicit constraints intact: mobile remains o
 - Native BLE is implemented before final firmware is available, so real-device behavior must still be verified.
 - The app has no new automated mobile test coverage by design.
 - `apps/mobile` uses local file dependencies to shared packages and builds them through local package scripts.
-- Metro needs explicit mobile-local resolver configuration for the standalone app to bundle shared packages outside `apps/mobile`.
 
 ### Risks
 
@@ -122,7 +121,6 @@ The decision also keeps the user's explicit constraints intact: mobile remains o
 
 - `packages/contracts/src/schemas/ble.ts` is the source of BLE UUIDs and payload schemas.
 - `packages/decision-tree/src` owns canonical emergency metadata and compression.
-- `apps/mobile/metro.config.js` maps `@loom/contracts` and `@loom/decision-tree` for Metro bundling without adding mobile to the root workspace.
 - `apps/mobile/src/ble/client.ts` defines the mobile BLE abstraction.
 - `apps/mobile/src/ble/mockClient.ts` provides firmware-independent manual flows.
 - `apps/mobile/src/ble/nativeClient.ts` wires the final contract to `react-native-ble-plx`.
