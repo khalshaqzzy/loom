@@ -67,6 +67,13 @@ Only local mobile scripts were added:
 
 Root package scripts/workspaces were not changed to include mobile.
 
+`apps/mobile/metro.config.js` was added because Metro does not use TypeScript `paths` during Android bundling. It explicitly watches and aliases the local shared packages:
+
+- `@loom/contracts`
+- `@loom/decision-tree`
+
+`zod` is also listed directly in `apps/mobile/package.json` because shared contracts are parsed at runtime in the mobile bundle.
+
 ### BLE Layer
 
 New files:
@@ -222,6 +229,7 @@ npm run prepare:shared
 npm run typecheck
 npm run typecheck
 npx expo config --type public
+npx expo export --platform android --output-dir .expo-export-check
 ```
 
 Command context:
@@ -229,6 +237,7 @@ Command context:
 - The first two commands were run at repo root for `@loom/contracts`.
 - The `npm run build` and `npm run typecheck` pair was run in `packages/decision-tree`.
 - `npm run prepare:shared`, `npm run typecheck`, and `npx expo config --type public` were run in `apps/mobile`.
+- Android bundling was verified with `npx expo export --platform android --output-dir .expo-export-check`; the generated export folder was removed after verification.
 - Root `npm run typecheck` also passed and still does not include mobile.
 
 Mobile test-file check:
@@ -293,6 +302,7 @@ Primary changed areas:
 - `packages/decision-tree`
 - `apps/mobile/package.json`
 - `apps/mobile/package-lock.json`
+- `apps/mobile/metro.config.js`
 - `apps/mobile/tsconfig.json`
 - `apps/mobile/app`
 - `apps/mobile/src/ble`
