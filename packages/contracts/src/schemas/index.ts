@@ -1,4 +1,5 @@
 export * from "./auth";
+export * from "./ble";
 export * from "./health";
 export * from "./ingest";
 export * from "./map";

@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react-native",
+    "baseUrl": ".",
+    "paths": {
+      "@loom/contracts": ["../../packages/contracts/src"],
+      "@loom/decision-tree": ["../../packages/decision-tree/src"]
+    }
+  },
+  "exclude": ["node_modules"]
+}
