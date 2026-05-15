@@ -17,6 +17,8 @@ const okResponse = {
       timestamp: "2026-05-04T00:00:00.000Z",
       lat: null,
       lon: null,
+      latE6: null,
+      lonE6: null,
       message: "fine",
       receivedByNodeId: null,
       receivedByUploaderId: null,
