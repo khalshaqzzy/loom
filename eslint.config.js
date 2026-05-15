@@ -30,7 +30,9 @@ module.exports = [
     files: ["**/*.ts"],
     languageOptions: {
       parserOptions: {
-        projectService: true,
+        projectService: {
+          allowDefaultProject: ["packages/contracts/test/*.ts"]
+        },
         tsconfigRootDir: __dirname
       }
     },
