@@ -56,6 +56,8 @@ Safe status does not use the decision tree. Mobile always sends `fine` for safe 
 - `@loom/contracts`
 - `@loom/decision-tree`
 
+`apps/mobile/metro.config.js` maps those shared packages to `packages/*/src` and watches the repo `packages` directory so Expo/Metro can bundle Android without adding mobile to the root workspace.
+
 Only local mobile scripts were added:
 
 - `prepare:shared`
@@ -235,6 +237,7 @@ npm run typecheck
 npx expo config --type public
 npm run typecheck
 npx expo config --type public
+npx expo export --platform android --output-dir .expo-export-check
 ```
 
 Command context:
@@ -244,6 +247,7 @@ Command context:
 - `npm run prepare:shared`, `npm run typecheck`, and `npx expo config --type public` were run in `apps/mobile`.
 - Root `npm run typecheck` also passed and still does not include mobile.
 - The final two commands were rerun in `apps/mobile` after BLE notify hardening.
+- Android export was run in `apps/mobile` after adding Metro shared-package resolution; temporary `.expo-export-check` output was deleted after verification.
 
 Mobile test-file check:
 
@@ -308,6 +312,7 @@ Primary changed areas:
 - `packages/decision-tree`
 - `apps/mobile/package.json`
 - `apps/mobile/package-lock.json`
+- `apps/mobile/metro.config.js`
 - `apps/mobile/tsconfig.json`
 - `apps/mobile/app`
 - `apps/mobile/src/ble`
