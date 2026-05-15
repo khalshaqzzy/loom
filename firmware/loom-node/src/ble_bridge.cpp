@@ -53,12 +53,46 @@ static bool parseBacklogId(const char* backlogId, uint32_t* senderNodeId, uint32
   return true;
 }
 
+static String hexPreview(const uint8_t* bytes, size_t length, size_t maxBytes = 16) {
+  if (bytes == nullptr || length == 0) return "";
+  char out[(16 * 3) + 1] = {0};
+  size_t count = length < maxBytes ? length : maxBytes;
+  size_t offset = 0;
+  for (size_t i = 0; i < count && offset + 3 < sizeof(out); i++) {
+    offset += snprintf(out + offset, sizeof(out) - offset, "%02x%s", bytes[i], i + 1 < count ? " " : "");
+  }
+  return String(out);
+}
+
+static void logJsonValueState(const char* label, NimBLECharacteristic* characteristic, size_t expectedLength) {
+  if (label == nullptr || characteristic == nullptr) return;
+  NimBLEAttValue stored = characteristic->getValue();
+  size_t storedLength = characteristic->getDataLength();
+  Serial.printf("[BLE DBG] %s jsonBytes=%u storedBytes=%u hex=%s\n",
+                label,
+                (unsigned)expectedLength,
+                (unsigned)storedLength,
+                hexPreview(stored.data(), storedLength).c_str());
+}
+
+static void setJsonValue(NimBLECharacteristic* characteristic, const String& value, const char* label = nullptr) {
+  if (characteristic == nullptr) return;
+  characteristic->setValue(reinterpret_cast<const uint8_t*>(value.c_str()), value.length());
+  logJsonValueState(label, characteristic, value.length());
+}
+
+static void notifyJsonValue(NimBLECharacteristic* characteristic, const String& value, const char* label = nullptr) {
+  if (characteristic == nullptr) return;
+  setJsonValue(characteristic, value, label);
+  characteristic->notify();
+}
+
 class IdentityCallbacks : public NimBLECharacteristicCallbacks {
  public:
   explicit IdentityCallbacks(BleBridge* bridge) : bridge_(bridge) {}
   void onRead(NimBLECharacteristic* pChar) override {
     String out = bridge_->identityJson();
-    pChar->setValue(out.c_str());
+    setJsonValue(pChar, out, "identity:read");
     Serial.printf("[BLE TX] Identity read: %s\n", out.c_str());
   }
  private:
@@ -98,6 +132,31 @@ class InternetCallbacks : public NimBLECharacteristicCallbacks {
   BleBridge* bridge_;
 };
 
+class ServerCallbacks : public NimBLEServerCallbacks {
+ public:
+  explicit ServerCallbacks(BleBridge* bridge) : bridge_(bridge) {}
+
+  void onConnect(NimBLEServer*) override {
+    bridge_->resetValidationSession("connect");
+  }
+
+  void onDisconnect(NimBLEServer* server) override {
+    bridge_->resetValidationSession("disconnect");
+    server->startAdvertising();
+    Serial.println("[BLE] Advertising restarted after disconnect");
+  }
+
+ private:
+  BleBridge* bridge_;
+};
+
+void BleBridge::resetValidationSession(const char* reason) {
+  validated_ = false;
+  lastBacklogNotifyMs_ = 0;
+  resetChallenge();
+  Serial.printf("[BLE] Validation session reset reason=%s\n", reason == nullptr ? "unknown" : reason);
+}
+
 void BleBridge::resetChallenge() {
   static const char alphabet[] = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   for (size_t i = 0; i < 12; i++) {
@@ -105,7 +164,8 @@ void BleBridge::resetChallenge() {
   }
   challenge_[12] = '\0';
   if (validationChar_ != nullptr) {
-    validationChar_->setValue(challengeJson().c_str());
+    String challenge = challengeJson();
+    setJsonValue(validationChar_, challenge, "validation:challenge-reset");
   }
   Serial.printf("[BLE] Validation challenge refreshed: %s\n", challenge_);
 }
@@ -135,18 +195,19 @@ String BleBridge::challengeJson() const {
 void BleBridge::begin(uint32_t nodeId, BleBridgeCallbacks* callbacks) {
   nodeId_ = nodeId;
   callbacks_ = callbacks;
-  validated_ = false;
-  resetChallenge();
+  resetValidationSession("begin");
 
   NimBLEDevice::init(BLE_DEVICE_NAME);
   Serial.printf("[BLE] Init device=%s service=%s\n", BLE_DEVICE_NAME, LOOM_SERVICE_UUID);
   NimBLEServer* server = NimBLEDevice::createServer();
+  server->setCallbacks(new ServerCallbacks(this));
+  server->advertiseOnDisconnect(false);
   NimBLEService* service = server->createService(LOOM_SERVICE_UUID);
 
   identityChar_ = service->createCharacteristic(LOOM_IDENTITY_CHAR_UUID, NIMBLE_PROPERTY::READ);
   identityChar_->setCallbacks(new IdentityCallbacks(this));
   String identity = identityJson();
-  identityChar_->setValue(identity.c_str());
+  setJsonValue(identityChar_, identity, "identity:init");
   Serial.printf("[BLE] Identity ready uuid=%s node=%lu\n", LOOM_IDENTITY_CHAR_UUID, nodeId_);
 
   validationChar_ = service->createCharacteristic(
@@ -154,7 +215,8 @@ void BleBridge::begin(uint32_t nodeId, BleBridgeCallbacks* callbacks) {
     NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::NOTIFY
   );
   validationChar_->setCallbacks(new ValidationCallbacks(this));
-  validationChar_->setValue(challengeJson().c_str());
+  String challenge = challengeJson();
+  setJsonValue(validationChar_, challenge, "validation:challenge-init");
   Serial.printf("[BLE] Validation ready uuid=%s\n", LOOM_VALIDATION_CHAR_UUID);
 
   NimBLECharacteristic* messageChar = service->createCharacteristic(
@@ -166,7 +228,7 @@ void BleBridge::begin(uint32_t nodeId, BleBridgeCallbacks* callbacks) {
 
   messageAckChar_ = service->createCharacteristic(LOOM_MESSAGE_ACK_CHAR_UUID, NIMBLE_PROPERTY::NOTIFY);
   backlogChar_ = service->createCharacteristic(LOOM_BACKLOG_STREAM_CHAR_UUID, NIMBLE_PROPERTY::READ | NIMBLE_PROPERTY::NOTIFY);
-  backlogChar_->setValue("{}");
+  setJsonValue(backlogChar_, String("{}"), "backlog:init");
   Serial.printf("[BLE] Message ack notify uuid=%s\n", LOOM_MESSAGE_ACK_CHAR_UUID);
   Serial.printf("[BLE] Backlog stream ready uuid=%s\n", LOOM_BACKLOG_STREAM_CHAR_UUID);
 
@@ -213,8 +275,7 @@ void BleBridge::handleValidationWrite(const String& json) {
   if (!ok) response["error"] = "validation_failed";
   String out;
   serializeJson(response, out);
-  validationChar_->setValue(out.c_str());
-  validationChar_->notify();
+  notifyJsonValue(validationChar_, out, "validation:response");
   Serial.printf("[BLE TX] Validation response: %s\n", out.c_str());
 }
 
@@ -289,8 +350,7 @@ void BleBridge::notifyMessageAck(const char* clientMessageId, bool accepted, con
   }
   String out;
   serializeJson(doc, out);
-  messageAckChar_->setValue(out.c_str());
-  messageAckChar_->notify();
+  notifyJsonValue(messageAckChar_, out, "messageAck:notify");
   Serial.printf("[BLE TX] Message ack: %s\n", out.c_str());
 }
 
@@ -357,8 +417,7 @@ void BleBridge::notifyBacklogItem(const BacklogItem& item) {
   doc["source"] = "lora_mesh";
   String out;
   serializeJson(doc, out);
-  backlogChar_->setValue(out.c_str());
-  backlogChar_->notify();
+  notifyJsonValue(backlogChar_, out, "backlog:notify");
   Serial.printf("[BLE TX] Backlog item id=%s bytes=%u\n", backlogId.c_str(), out.length());
 }
 
@@ -387,8 +446,7 @@ void BleBridge::notifyNodeStatus(uint16_t rangeToGateway, size_t neighborCount, 
   doc["internetPathActive"] = internetPathActive;
   String out;
   serializeJson(doc, out);
-  nodeStatusChar_->setValue(out.c_str());
-  nodeStatusChar_->notify();
+  notifyJsonValue(nodeStatusChar_, out, "nodeStatus:notify");
   Serial.printf("[BLE TX] Node status range=%u neighbors=%u pending=%u backlog=%u internet=%s validated=%s\n",
                 rangeToGateway,
                 (unsigned)neighborCount,

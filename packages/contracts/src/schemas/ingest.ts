@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_INGEST_BATCH_SIZE } from "../constants";
+import { safeNormalizeMeshCoordinates } from "../coordinates";
 import { messageSourceSchema, messageValueSchema, uploaderTypeSchema } from "../enums";
 import {
   isoDateTimeSchema,
@@ -12,20 +13,31 @@ import {
   seqIdSchema
 } from "./primitives";
 
-export const burstIngestMessageSchema = z.object({
-  senderNodeId: nodeIdNumericSchema,
-  seqId: seqIdSchema,
-  senderRangeToGateway: routeRangeSchema,
-  lastForwarderRangeToGateway: routeRangeSchema,
-  timestamp: isoDateTimeSchema,
-  lat: latitudeSchema.optional().nullable(),
-  lon: longitudeSchema.optional().nullable(),
-  latE6: latE6Schema.optional().nullable(),
-  lonE6: lonE6Schema.optional().nullable(),
-  message: messageValueSchema,
-  receivedByNodeId: nodeIdNumericSchema.optional().nullable(),
-  source: messageSourceSchema.default("lora_mesh")
-});
+export const burstIngestMessageSchema = z
+  .object({
+    senderNodeId: nodeIdNumericSchema,
+    seqId: seqIdSchema,
+    senderRangeToGateway: routeRangeSchema,
+    lastForwarderRangeToGateway: routeRangeSchema,
+    timestamp: isoDateTimeSchema,
+    lat: latitudeSchema.optional().nullable(),
+    lon: longitudeSchema.optional().nullable(),
+    latE6: latE6Schema.optional().nullable(),
+    lonE6: lonE6Schema.optional().nullable(),
+    message: messageValueSchema,
+    receivedByNodeId: nodeIdNumericSchema.optional().nullable(),
+    source: messageSourceSchema.default("lora_mesh")
+  })
+  .superRefine((message, context) => {
+    const normalized = safeNormalizeMeshCoordinates(message);
+    if (!normalized.success) {
+      context.addIssue({
+        code: "custom",
+        path: ["latE6"],
+        message: normalized.error
+      });
+    }
+  });
 
 export const burstIngestRequestSchema = z.object({
   uploaderType: uploaderTypeSchema,

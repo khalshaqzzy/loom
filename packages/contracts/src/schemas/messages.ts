@@ -3,6 +3,8 @@ import { messageSourceSchema, messageValueSchema } from "../enums";
 import {
   isoDateTimeSchema,
   latitudeSchema,
+  latE6Schema,
+  lonE6Schema,
   longitudeSchema,
   nodeIdNumericSchema,
   paginationQuerySchema,
@@ -28,6 +30,8 @@ export const meshMessageSchema = z.object({
   timestamp: isoDateTimeSchema,
   lat: latitudeSchema.nullable(),
   lon: longitudeSchema.nullable(),
+  latE6: latE6Schema.nullable(),
+  lonE6: lonE6Schema.nullable(),
   message: messageValueSchema,
   receivedByNodeId: nodeIdNumericSchema.nullable(),
   receivedByUploaderId: z.string().nullable(),

@@ -27,7 +27,7 @@ export type BleClient = {
   connect(deviceId: string, rawDevice?: unknown): Promise<void>;
   disconnect(): Promise<void>;
   readNodeIdentity(): Promise<BleNodeIdentity>;
-  readValidationChallenge(): Promise<BleValidationChallenge>;
+  readValidationChallenge(nodeId?: number): Promise<BleValidationChallenge | BleValidationResponse>;
   validateNode(nodeId: number, challenge: string): Promise<BleValidationResponse>;
   writeMessage(payload: BleMobileMessage): Promise<BleMessageAck>;
   subscribeBacklog(onItem: (item: BleBacklogItem) => void): Unsubscribe;

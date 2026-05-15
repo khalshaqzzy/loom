@@ -17,6 +17,7 @@ import {
   bleNodeStatusSchema,
   bleValidationChallengeSchema,
   bleValidationResponseSchema,
+  loomBleProtocol,
   loomBleUuids
 } from "@loom/contracts";
 import type { BleClient, DiscoveredNode, Unsubscribe } from "./client";
@@ -42,6 +43,17 @@ type NativeDevice = {
     characteristicUuid: string,
     listener: (error: unknown, characteristic: { value: string | null } | null) => void
   ): { remove(): void };
+  services?(): Promise<Array<{ uuid: string }>>;
+  characteristicsForService?(serviceUuid: string): Promise<
+    Array<{
+      uuid: string;
+      isReadable?: boolean;
+      isWritableWithResponse?: boolean;
+      isWritableWithoutResponse?: boolean;
+      isNotifiable?: boolean;
+      value?: string | null;
+    }>
+  >;
   cancelConnection(): Promise<unknown>;
 };
 
@@ -53,12 +65,14 @@ type NativeBleManager = {
   ): void;
   stopDeviceScan(): void;
   cancelDeviceConnection?(deviceId: string): Promise<unknown>;
-  connectToDevice(deviceId: string): Promise<NativeDevice>;
+  connectToDevice(deviceId: string, options?: unknown): Promise<NativeDevice>;
 };
 
 const BLE_RESPONSE_TIMEOUT_MS = 5000;
 const BLE_NOTIFY_SUBSCRIBE_SETTLE_MS = 250;
 const BLE_LEGACY_STATUS_SETTLE_MS = 750;
+const BLE_IDENTITY_READ_ATTEMPTS = 3;
+const BLE_IDENTITY_READ_RETRY_MS = 350;
 
 const encodeJson = (value: unknown): string =>
   Buffer.from(JSON.stringify(value), "utf8").toString("base64");
@@ -129,11 +143,9 @@ const hexPreview = (value: string, maxBytes = 80): string => {
     ? Buffer.from(normalizedBase64, "base64")
     : Buffer.from(value, "utf8");
 
-  return bytes
-    .subarray(0, maxBytes)
-    .toString("hex")
-    .replace(/(.{2})/g, "$1 ")
-    .trim();
+  return Array.from(bytes.subarray(0, maxBytes))
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join(" ");
 };
 
 const decodedByteLength = (value: string): number => {
@@ -162,6 +174,9 @@ export class NativeBleClient implements BleClient {
   isMock = false;
   private manager: NativeBleManager;
   private device: NativeDevice | null = null;
+  private connectedDeviceId: string | null = null;
+  private rawDevice: NativeDevice | undefined;
+  private connectionDebugLog: string[] = [];
 
   constructor(manager: NativeBleManager) {
     this.manager = manager;
@@ -213,35 +228,185 @@ export class NativeBleClient implements BleClient {
   }
 
   async connect(deviceId: string, rawDevice?: unknown): Promise<void> {
+    try {
+      this.manager.stopDeviceScan();
+    } catch {
+      // Some Android adapters report an error when no scan is active.
+    }
+    const raw = rawDevice as NativeDevice | undefined;
+    this.connectedDeviceId = deviceId;
+    this.rawDevice = raw;
+    this.connectionDebugLog = [
+      `connect:deviceId=${deviceId}`,
+      raw
+        ? `connect:rawDevice id=${raw.id} name=${raw.name ?? "unknown"} rssi=${raw.rssi ?? "unknown"}`
+        : "connect:rawDevice unavailable"
+    ];
+
     await this.manager.cancelDeviceConnection?.(deviceId).catch(() => undefined);
     await wait(300);
-    const device =
-      (rawDevice as NativeDevice | undefined) ?? (await this.manager.connectToDevice(deviceId));
-    const connected = await device.connect({
+
+    const connectionOptions = {
       refreshGatt: Platform.OS === "android" ? "OnConnected" : undefined,
       requestMTU: Platform.OS === "android" ? 256 : undefined,
       timeout: 10000
-    });
+    };
+
+    let connected: NativeDevice;
+    try {
+      connected = await this.manager.connectToDevice(deviceId, connectionOptions);
+      this.connectionDebugLog.push("connect:manager.connectToDevice complete");
+    } catch (error) {
+      if (!raw) throw error;
+      this.connectionDebugLog.push(
+        `connect:manager.connectToDevice failed=${error instanceof Error ? error.message : String(error)}`
+      );
+      connected = await raw.connect(connectionOptions);
+      this.connectionDebugLog.push("connect:rawDevice.connect complete");
+    }
+
     this.device = await connected.discoverAllServicesAndCharacteristics();
+    this.connectionDebugLog.push(`connect:discovered id=${this.device.id}`);
+    await this.appendGattDebug(loomBleUuids.service, this.connectionDebugLog);
   }
 
   async disconnect(): Promise<void> {
     if (!this.device) return;
     await this.device.cancelConnection();
     this.device = null;
+    this.connectedDeviceId = null;
+    this.rawDevice = undefined;
+    this.connectionDebugLog = [];
   }
 
   async readNodeIdentity(): Promise<BleNodeIdentity> {
-    const value = await this.read(loomBleUuids.nodeIdentity);
-    const debugLog = [`identity:read uuid=${loomBleUuids.nodeIdentity}`];
-    const payload = this.parseJsonValue(value, "identity:read", debugLog);
-    return this.parseSchema(payload, bleNodeIdentitySchema.parse, "identity:read", debugLog);
+    const debugLog = [
+      ...this.connectionDebugLog,
+      `identity:read uuid=${loomBleUuids.nodeIdentity}`
+    ];
+
+    try {
+      return await this.readJsonWithRetries(
+        loomBleUuids.nodeIdentity,
+        bleNodeIdentitySchema.parse,
+        "identity:read",
+        debugLog,
+        BLE_IDENTITY_READ_ATTEMPTS
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes("4-byte binary")) throw error;
+
+      debugLog.push("identity:reconnect because identity stayed binary");
+
+      if (await this.reconnectForIdentityRead(debugLog)) {
+        try {
+          return await this.readJsonWithRetries(
+            loomBleUuids.nodeIdentity,
+            bleNodeIdentitySchema.parse,
+            "identity:reconnect-read",
+            debugLog,
+            1
+          );
+        } catch (reconnectReadError) {
+          const reconnectReadMessage =
+            reconnectReadError instanceof Error
+              ? reconnectReadError.message
+              : String(reconnectReadError);
+          debugLog.push(`identity:reconnect-read failed=${reconnectReadMessage.split("\n")[0]}`);
+          if (reconnectReadMessage.includes("4-byte binary")) {
+            throw new Error(
+              this.formatBleDiagnostic(
+                "Identity BLE tetap mengembalikan 4-byte binary setelah reconnect dan rediscovery.",
+                debugLog
+              )
+            );
+          }
+        }
+      }
+
+      debugLog.push("nodeStatus:identity-fallback using nodeStatus after identity stayed binary");
+
+      try {
+        const status = await this.readNodeStatusValue(
+          "nodeStatus:identity-fallback-read",
+          debugLog
+        );
+        const identity = bleNodeIdentitySchema.parse({
+          protocol: loomBleProtocol,
+          nodeId: status.nodeId,
+          firmwareVersion: "unknown-node-status-fallback",
+          capabilities: ["node_status_identity_fallback"]
+        });
+        debugLog.push(`identity:fallback accepted nodeId=${identity.nodeId}`);
+        return identity;
+      } catch (fallbackError) {
+        debugLog.push(
+          `identity:fallback failed=${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`
+        );
+        throw new Error(
+          this.formatBleDiagnostic(
+            "Identity BLE tidak bisa dibaca dan fallback nodeStatus gagal.",
+            debugLog
+          )
+        );
+      }
+    }
   }
 
-  async readValidationChallenge(): Promise<BleValidationChallenge> {
-    const value = await this.read(loomBleUuids.validation);
+  async readValidationChallenge(
+    nodeId?: number
+  ): Promise<BleValidationChallenge | BleValidationResponse> {
     const debugLog = [`validation:challenge-read uuid=${loomBleUuids.validation}`];
-    const payload = this.parseJsonValue(value, "validation:challenge-read", debugLog);
+    const payload = await this.readValidationChallengePayload(
+      debugLog,
+      "validation:challenge-read"
+    );
+    const challenge = bleValidationChallengeSchema.safeParse(payload);
+    if (challenge.success) return challenge.data;
+
+    const response = bleValidationResponseSchema.safeParse(payload);
+    if (response.success) {
+      debugLog.push(
+        `validation:challenge-read received validation response validated=${response.data.validated}`
+      );
+
+      if (response.data.validated && nodeId !== undefined && response.data.nodeId === nodeId) {
+        const statusResponse = await this.readNodeStatusForValidation(nodeId, debugLog);
+        if (statusResponse) return statusResponse;
+      }
+
+      debugLog.push("validation:challenge-read stale response; reconnecting for fresh challenge");
+      if (await this.reconnectForValidationRead(debugLog)) {
+        const retryPayload = await this.readValidationChallengePayload(
+          debugLog,
+          "validation:challenge-retry-read"
+        );
+        const retryChallenge = bleValidationChallengeSchema.safeParse(retryPayload);
+        if (retryChallenge.success) return retryChallenge.data;
+
+        const retryResponse = bleValidationResponseSchema.safeParse(retryPayload);
+        if (retryResponse.success) {
+          debugLog.push(
+            `validation:challenge-retry-read still response=${truncateForLog(stringifyForLog(retryResponse.data))}`
+          );
+          throw new Error(
+            this.formatBleDiagnostic(
+              "Characteristic validasi masih berisi respons validasi sebelumnya setelah reconnect.",
+              debugLog
+            )
+          );
+        }
+
+        return this.parseSchema(
+          retryPayload,
+          bleValidationChallengeSchema.parse,
+          "validation:challenge-retry-read",
+          debugLog
+        );
+      }
+    }
+
     return this.parseSchema(
       payload,
       bleValidationChallengeSchema.parse,
@@ -324,6 +489,150 @@ export class NativeBleClient implements BleClient {
     );
   }
 
+  private async appendGattDebug(serviceUuid: string, debugLog: string[]): Promise<void> {
+    if (!this.device) return;
+
+    try {
+      const services = await this.device.services?.();
+      if (services) {
+        debugLog.push(`connect:services=${services.map((service) => service.uuid).join(",")}`);
+      }
+    } catch (error) {
+      debugLog.push(
+        `connect:services failed=${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    try {
+      const characteristics = await this.device.characteristicsForService?.(serviceUuid);
+      if (characteristics) {
+        debugLog.push(
+          `connect:characteristics=${characteristics
+            .map((characteristic) => {
+              const flags = [
+                characteristic.isReadable ? "R" : "",
+                characteristic.isWritableWithResponse ? "W" : "",
+                characteristic.isWritableWithoutResponse ? "WN" : "",
+                characteristic.isNotifiable ? "N" : ""
+              ]
+                .filter(Boolean)
+                .join("");
+              return `${characteristic.uuid}${flags ? `(${flags})` : ""}`;
+            })
+            .join(",")}`
+        );
+      }
+    } catch (error) {
+      debugLog.push(
+        `connect:characteristics failed=${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  private async readJsonWithRetries<T>(
+    characteristicUuid: string,
+    parse: (input: unknown) => T,
+    source: string,
+    debugLog: string[],
+    attempts: number
+  ): Promise<T> {
+    let lastError: Error | null = null;
+
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      if (attempt > 1) await wait(BLE_IDENTITY_READ_RETRY_MS);
+      debugLog.push(`${source}:attempt=${attempt}`);
+
+      try {
+        const value = await this.read(characteristicUuid);
+        const payload = this.parseJsonValue(value, source, debugLog);
+        return this.parseSchema(payload, parse, source, debugLog);
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        debugLog.push(`${source}:attempt${attempt} failed=${lastError.message.split("\n")[0]}`);
+
+        if (!lastError.message.includes("4-byte binary")) {
+          throw lastError;
+        }
+
+        if (attempt === attempts) {
+          throw new Error(
+            this.formatBleDiagnostic(
+              "Characteristic identity masih mengembalikan 4-byte binary setelah retry.",
+              debugLog
+            )
+          );
+        }
+
+        debugLog.push(`${source}:retrying after stale/binary identity read`);
+      }
+    }
+
+    throw lastError ?? new Error(this.formatBleDiagnostic("Read BLE gagal.", debugLog));
+  }
+
+  private async readNodeStatusValue(context: string, debugLog: string[]): Promise<BleNodeStatus> {
+    debugLog.push(`${context}:read uuid=${loomBleUuids.nodeStatus}`);
+    const value = await this.read(loomBleUuids.nodeStatus);
+    const payload = this.parseJsonValue(value, context, debugLog);
+    return this.parseSchema(payload, bleNodeStatusSchema.parse, context, debugLog);
+  }
+
+  private async readValidationChallengePayload(
+    debugLog: string[],
+    context: string
+  ): Promise<unknown> {
+    const value = await this.read(loomBleUuids.validation);
+    return this.parseJsonValue(value, context, debugLog);
+  }
+
+  private async reconnectForIdentityRead(debugLog: string[]): Promise<boolean> {
+    const deviceId = this.connectedDeviceId ?? this.device?.id;
+    if (!deviceId) {
+      debugLog.push("identity:reconnect skipped=no connected device id");
+      return false;
+    }
+
+    try {
+      await this.device?.cancelConnection().catch(() => undefined);
+      this.device = null;
+      await wait(500);
+      await this.connect(deviceId, this.rawDevice);
+      for (const entry of this.connectionDebugLog) {
+        debugLog.push(`identity:reconnect:${entry}`);
+      }
+      return true;
+    } catch (error) {
+      debugLog.push(
+        `identity:reconnect failed=${error instanceof Error ? error.message : String(error)}`
+      );
+      return false;
+    }
+  }
+
+  private async reconnectForValidationRead(debugLog: string[]): Promise<boolean> {
+    const deviceId = this.connectedDeviceId ?? this.device?.id;
+    if (!deviceId) {
+      debugLog.push("validation:reconnect skipped=no connected device id");
+      return false;
+    }
+
+    try {
+      await this.device?.cancelConnection().catch(() => undefined);
+      this.device = null;
+      await wait(500);
+      await this.connect(deviceId, this.rawDevice);
+      for (const entry of this.connectionDebugLog) {
+        debugLog.push(`validation:reconnect:${entry}`);
+      }
+      return true;
+    } catch (error) {
+      debugLog.push(
+        `validation:reconnect failed=${error instanceof Error ? error.message : String(error)}`
+      );
+      return false;
+    }
+  }
+
   private parseJsonValue(value: string | null, source: string, debugLog: string[]): unknown {
     if (!value) {
       debugLog.push(`${source}: empty payload`);
@@ -341,7 +650,7 @@ export class NativeBleClient implements BleClient {
       debugLog.push(`${source}: detected 4-byte binary value on identity characteristic`);
       throw new Error(
         this.formatBleDiagnostic(
-          "Characteristic identity bukan JSON LOOM. Kemungkinan node masih menjalankan firmware lama atau service UUID bertabrakan dengan firmware contoh ESP32. Flash firmware LOOM terbaru lalu pindai ulang.",
+          "Characteristic identity mengembalikan 4-byte binary, bukan JSON LOOM. Jika Serial ESP sudah menampilkan Identity read JSON, kemungkinan Android masih memakai GATT/value cache atau koneksi stale. Reset Bluetooth/app data lalu pindai ulang.",
           debugLog
         )
       );
@@ -381,7 +690,7 @@ export class NativeBleClient implements BleClient {
   }
 
   private formatBleDiagnostic(summary: string, debugLog: string[]): string {
-    return `${summary}\n\nLog BLE:\n${debugLog.slice(-12).join("\n")}`;
+    return `${summary}\n\nLog BLE:\n${debugLog.slice(-30).join("\n")}`;
   }
 
   private async readNodeStatusForValidation(
@@ -391,14 +700,7 @@ export class NativeBleClient implements BleClient {
     await wait(BLE_LEGACY_STATUS_SETTLE_MS);
 
     try {
-      const value = await this.read(loomBleUuids.nodeStatus);
-      const payload = this.parseJsonValue(value, "validation:status-read", debugLog);
-      const status = this.parseSchema(
-        payload,
-        bleNodeStatusSchema.parse,
-        "validation:status-read",
-        debugLog
-      );
+      const status = await this.readNodeStatusValue("validation:status-read", debugLog);
       if (status.nodeId === nodeId && status.validated) {
         debugLog.push("validation:status-read confirms validated=true");
         return { validated: true, nodeId };

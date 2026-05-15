@@ -11,6 +11,8 @@ export const serializeMessage = (message: MeshMessageDocument): MeshMessageRespo
   timestamp: message.timestamp.toISOString(),
   lat: message.lat,
   lon: message.lon,
+  latE6: message.latE6,
+  lonE6: message.lonE6,
   message: message.message,
   receivedByNodeId: message.receivedByNodeId,
   receivedByUploaderId: message.receivedByUploaderId,

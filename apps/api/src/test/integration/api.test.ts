@@ -177,6 +177,100 @@ describe("LOOM API", () => {
     expect(mixed.body.rejected).toHaveLength(1);
   });
 
+  it("normalizes E6-only burst coordinates for history, heatmap, and marker metadata", async () => {
+    const agent = await loggedInAgent(server);
+    await registerNode(agent, fixtureNodeOwner).expect(201);
+
+    await request(server.app)
+      .post("/api/ingest/burst")
+      .send(
+        burstRequest([
+          validMeshMessage({
+            seqId: 33,
+            lat: undefined,
+            lon: undefined,
+            latE6: -6_208_763,
+            lonE6: 106_845_599
+          })
+        ])
+      )
+      .expect(202);
+
+    await agent
+      .get("/api/admin/messages?nodeId=42")
+      .expect(200)
+      .expect((response) => {
+        const message = messageHistoryResponseSchema.parse(response.body).messages[0];
+        expect(message).toMatchObject({
+          lat: -6.208763,
+          lon: 106.845599,
+          latE6: -6_208_763,
+          lonE6: 106_845_599
+        });
+      });
+
+    await request(server.app)
+      .get("/api/public/map/heatmap")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.points[0]).toMatchObject({
+          lat: -6.208763,
+          lon: 106.845599
+        });
+      });
+
+    await request(server.app)
+      .get("/api/public/map/markers")
+      .expect(200)
+      .expect((response) => {
+        expect(response.body.markers[0]).toMatchObject({
+          lat: -6.208763,
+          lon: 106.845599
+        });
+      });
+  });
+
+  it("rejects malformed coordinate pairs and treats zero-zero E6 as no location", async () => {
+    const agent = await loggedInAgent(server);
+    await registerNode(agent, fixtureNodeOwner).expect(201);
+
+    const response = await request(server.app)
+      .post("/api/ingest/burst")
+      .send(
+        burstRequest([
+          validMeshMessage({ seqId: 34, lat: undefined, lon: undefined, latE6: 0, lonE6: 0 }),
+          validMeshMessage({
+            seqId: 35,
+            lat: undefined,
+            lon: undefined,
+            latE6: -6_208_763,
+            lonE6: undefined
+          }),
+          validMeshMessage({
+            seqId: 36,
+            lat: -6.208763,
+            lon: 106.845599,
+            latE6: -6_200_000,
+            lonE6: 106_845_599
+          })
+        ])
+      )
+      .expect(202);
+
+    expect(response.body.accepted).toHaveLength(1);
+    expect(response.body.rejected).toHaveLength(2);
+
+    const history = await agent.get("/api/admin/messages?nodeId=42").expect(200);
+    const message = messageHistoryResponseSchema.parse(history.body).messages[0];
+    expect(message).toMatchObject({
+      seqId: 34,
+      lat: null,
+      lon: null,
+      latE6: null,
+      lonE6: null
+    });
+  });
+
   it("handles concurrent duplicate burst requests with one stored message", async () => {
     const agent = await loggedInAgent(server);
     await registerNode(agent, fixtureNodeOwner).expect(201);

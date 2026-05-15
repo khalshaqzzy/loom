@@ -28,6 +28,8 @@ describe("AdminMessagesClient", () => {
           timestamp: "2026-05-04T00:00:00.000Z",
           lat: -6.2,
           lon: 106.8,
+          latE6: -6_200_000,
+          lonE6: 106_800_000,
           message: "fine",
           receivedByNodeId: null,
           receivedByUploaderId: "mobile-1",

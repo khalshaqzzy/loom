@@ -29,8 +29,11 @@ export const connectAndValidateNode = async (node: DiscoveredNode) => {
   try {
     await client.connect(node.deviceId, node.rawDevice);
     const identity = await client.readNodeIdentity();
-    const challenge = await client.readValidationChallenge();
-    const validation = await client.validateNode(identity.nodeId, challenge.challenge);
+    const challenge = await client.readValidationChallenge(identity.nodeId);
+    const validation =
+      "validated" in challenge
+        ? challenge
+        : await client.validateNode(identity.nodeId, challenge.challenge);
 
     if (!validation.validated) {
       throw new Error("Validasi node gagal.");

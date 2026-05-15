@@ -85,6 +85,7 @@ export const publicLookupFailureFixture = {
 };
 
 export const loraV2PacketFixture = {
-  heartbeatHex: "4c4d0100002a0001",
+  heartbeatHex: "d15a0100002a00020001",
+  dataHex: "d15a0200002a000000010002000169f7e180ffa14305065e559f66696e65",
   dataDedupKey: "42:1"
 };
